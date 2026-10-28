@@ -12,7 +12,7 @@ test("标题改名、多项目隔离与自动恢复，每个项目独立显示�
   await expect(page.locator(".task small")).toHaveCount(0);
   await expect(page.locator(".task strong").first()).toHaveCSS(
     "font-size",
-    "14.1429px",
+    "18px",
   );
   await page.locator("#newProject").click();
   await expect(page.locator(".task")).toHaveCount(0);

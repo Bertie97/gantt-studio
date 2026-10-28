@@ -961,3 +961,6 @@ button:disabled {
     flex-wrap: wrap;
   }
 }
+
+.hide-task-dates .task { justify-content:center; text-align:center; }
+.hide-task-dates .task strong { width:100%; font-size:calc(14px * var(--text-scale,1)); font-weight:600; }

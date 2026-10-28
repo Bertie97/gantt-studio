@@ -136,16 +136,17 @@ export function projectSVG(state) {
           state.categories.findIndex((c) => c.id === t.categoryId) %
             palette.length
         ],
-      w = Math.max(3, p.w);
+      w = Math.max(3, p.w),
+      titleOnly = state.settings?.showTaskDates === false;
     svg.push(
       `<defs><clipPath id="task-${index}"><rect x="${p.x + 4}" y="${p.y}" width="${Math.max(0, w - 8)}" height="50"/></clipPath></defs><rect x="${p.x}" y="${p.y}" width="${w}" height="50" rx="8" fill="${color}" fill-opacity=".13" stroke="${color}" stroke-opacity=".35"/><g clip-path="url(#task-${index})">`,
       text(
-        p.x + 12,
-        p.y + 21,
-        short(t.title, Math.floor((w - 20) / 13)),
-        12,
+        titleOnly ? p.x + w / 2 : p.x + 12,
+        titleOnly ? p.y + 25 : p.y + 21,
+        short(t.title, Math.floor((w - 20) / ((titleOnly ? 15 : 13) * fontScale))),
+        titleOnly ? 15 : 12,
         color,
-        'font-weight="600"',
+        titleOnly ? 'font-weight="600" text-anchor="middle" dominant-baseline="central"' : 'font-weight="600"',
       ),
       state.settings?.showTaskDates === false
         ? ""
