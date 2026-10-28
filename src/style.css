@@ -964,3 +964,5 @@ button:disabled {
 
 .hide-task-dates .task { justify-content:center; text-align:center; }
 .hide-task-dates .task strong { width:100%; font-size:calc(14px * var(--text-scale,1)); font-weight:600; }
+.dependency-line { stroke-width:1.6; stroke-dasharray:5 5; stroke-linecap:round; }
+.dependency-line.preview { stroke-width:1.6; }

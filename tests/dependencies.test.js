@@ -122,7 +122,7 @@ test("完整 SVG 导出包含关键点、虚线曲线，转义文本且无外部
   s.milestones = [{ id: "m", title: "发布<&", time: base + DAY }];
   const { svg, width, height } = projectSVG(s);
   assert.match(svg, /发布&lt;&amp;/);
-  assert.match(svg, /stroke-dasharray="6 5"/);
+  assert.match(svg, /stroke-dasharray="5 5"/);
   assert.match(svg, / C /);
   assert.doesNotMatch(svg, /<foreignObject|<script|<image/);
   assert.ok(width > 1000 && height > 400);

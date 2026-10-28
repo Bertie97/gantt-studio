@@ -124,7 +124,7 @@ test("PNG、SVG 与 JSON 导出包含完整数据且可解码", async ({
     if (format === "svg") {
       const svg = bytes.toString();
       expect(svg).toContain("发布节点");
-      expect(svg).toContain('stroke-dasharray="6 5"');
+      expect(svg).toContain('stroke-dasharray="5 5"');
       expect(svg).toContain("测试");
       const valid = await page.evaluate(
         (svg) =>

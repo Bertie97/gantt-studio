@@ -23,8 +23,22 @@ app.whenReady().then(() => {
       {
         label: "编辑",
         submenu: [
-          { role: "undo" },
-          { role: "redo" },
+          {
+            label: "撤销",
+            accelerator: "CmdOrCtrl+Z",
+            click: () =>
+              BrowserWindow.getFocusedWindow()?.webContents.executeJavaScript(
+                "window.dispatchEvent(new CustomEvent('gantt-history',{detail:'undo'}))",
+              ),
+          },
+          {
+            label: "重做",
+            accelerator: "CmdOrCtrl+Shift+Z",
+            click: () =>
+              BrowserWindow.getFocusedWindow()?.webContents.executeJavaScript(
+                "window.dispatchEvent(new CustomEvent('gantt-history',{detail:'redo'}))",
+              ),
+          },
           { type: "separator" },
           { role: "cut" },
           { role: "copy" },

@@ -34,7 +34,7 @@ export function projectSVG(state) {
   const weekWidth = Math.max(14, Math.min(150, 1800 / count));
   const left = 260,
     width = left + count * weekWidth + 40,
-    top = 236;
+    top = 270;
   const positions = new Map(),
     sections = [];
   let y = top;
@@ -54,7 +54,7 @@ export function projectSVG(state) {
   const text = (tx, ty, s, size = 13, fill = "#626d83", extra = "") =>
     `<text x="${tx}" y="${ty}" font-size="${size * fontScale}" fill="${fill}" ${extra}>${escape(s)}</text>`;
   const svg = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(width)}" height="${height}" viewBox="0 0 ${Math.ceil(width)} ${height}"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#8b81bf"/></marker></defs><rect width="100%" height="100%" fill="#f5f7fb"/><g font-family="Arial, Noto Sans SC, Microsoft YaHei, sans-serif"><rect x="20" y="20" width="${width - 40}" height="${height - 40}" rx="18" fill="white"/>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(width)}" height="${height}" viewBox="0 0 ${Math.ceil(width)} ${height}"><defs>${palette.map((color, i) => `<marker id="arrow${i}" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M2 1.5 L8 5 L2 8.5" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>`).join("")}</defs><rect width="100%" height="100%" fill="#f5f7fb"/><g font-family="Arial, Noto Sans SC, Microsoft YaHei, sans-serif"><rect x="20" y="20" width="${width - 40}" height="${height - 40}" rx="18" fill="white"/>`,
     text(
       48,
       60,
@@ -77,7 +77,7 @@ export function projectSVG(state) {
       `${date(Math.min(...times))} — ${date(Math.max(...times))}   ·   ${state.tasks.length} 个任务   ·   ${state.milestones?.length ?? 0} 个关键点`,
       13,
     ),
-    `<rect x="40" y="160" width="${width - 80}" height="76" rx="8" fill="#f4f3fc"/>`,
+    `<rect x="40" y="160" width="${width - 80}" height="110" rx="8" fill="#f4f3fc"/>`,
     text(56, 202, "任务类别", 13, "#605c82"),
   ];
   const stride = Math.max(1, Math.ceil(90 / weekWidth));
@@ -109,24 +109,32 @@ export function projectSVG(state) {
     .sort((a, b) => a.time - b.time)
     .forEach((m, i) => {
       const px = x(m.time),
-        ly = 221 + (i % 2) * 10;
+        ly = 231 + (i % 2) * 24;
       svg.push(
-        `<path d="M${px} 236 V${y}" stroke="#cf9250" stroke-dasharray="3 5" opacity=".65"/><path d="M${px} ${ly - 5} l5 5 -5 5 -5 -5Z" fill="#cf9250"/>`,
+        `<path d="M${px} 270 V${y}" stroke="#cf9250" stroke-dasharray="3 5" opacity=".65"/><path d="M${px} ${ly - 5} l5 5 -5 5 -5 -5Z" fill="#cf9250"/>`,
         text(
           Math.min(width - 180, Math.max(left, px + 9)),
           ly + 3,
           short(m.title, 16),
-          10,
+          14,
           "#b57c3b",
+          'font-weight="600"',
         ),
       );
     });
   for (const e of state.dependencies ?? []) {
     const a = positions.get(e.from),
       b = positions.get(e.to);
+    const index =
+      Math.max(
+        0,
+        state.categories.findIndex(
+          (c) => c.id === state.tasks.find((t) => t.id === e.from)?.categoryId,
+        ),
+      ) % palette.length;
     if (a && b)
       svg.push(
-        `<path d="${curve(a.x + a.w, a.y + 25, b.x, b.y + 25)}" fill="none" stroke="#8b81bf" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>`,
+        `<path d="${curve(a.x + a.w + 1, a.y + 25, b.x - 3, b.y + 25)}" fill="none" stroke="${palette[index]}" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrow${index})"/>`,
       );
   }
   state.tasks.forEach((t, index) => {
@@ -143,10 +151,15 @@ export function projectSVG(state) {
       text(
         titleOnly ? p.x + w / 2 : p.x + 12,
         titleOnly ? p.y + 25 : p.y + 21,
-        short(t.title, Math.floor((w - 20) / ((titleOnly ? 15 : 13) * fontScale))),
+        short(
+          t.title,
+          Math.floor((w - 20) / ((titleOnly ? 15 : 13) * fontScale)),
+        ),
         titleOnly ? 15 : 12,
         color,
-        titleOnly ? 'font-weight="600" text-anchor="middle" dominant-baseline="central"' : 'font-weight="600"',
+        titleOnly
+          ? 'font-weight="600" text-anchor="middle" dominant-baseline="central"'
+          : 'font-weight="600"',
       ),
       state.settings?.showTaskDates === false
         ? ""
@@ -161,7 +174,10 @@ export function projectSVG(state) {
     );
   });
   svg.push(
-    text(48, height - 48, "◆ 关键点     ╌→ 完成后开始依赖", 11, "#8b93a6"),
+    `<path d="M54 ${height-58} l5 5 -5 5 -5 -5Z" fill="#cf9250"/>`,
+    text(66,height-48,"关键点",11,"#8b93a6"),
+    `<path d="M145 ${height-53} H190" fill="none" stroke="${palette[0]}" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrow0)"/>`,
+    text(202,height-48,"完成后开始依赖",11,"#8b93a6"),
     text(width - 235, height - 48, "Gantt Studio · 计划有形", 11, "#9b91ba"),
     "</g></svg>",
   );
