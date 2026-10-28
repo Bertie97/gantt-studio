@@ -1,0 +1,457 @@
+import "./style.css";
+import { DAY, WEEK, monday, snap, placeTask, validate } from "./model.js";
+const $ = (s) => document.querySelector(s),
+  uid = () => crypto.randomUUID();
+const today = Date.UTC(
+  new Date().getFullYear(),
+  new Date().getMonth(),
+  new Date().getDate(),
+);
+const base = monday(today);
+const colors = ["#6961d9", "#299c91", "#cf9250", "#568acb", "#bf6f9c"];
+const initial = {
+  categories: [
+    {
+      id: "design",
+      name: "产品与设计",
+      description: "从想法到清晰的解决方案",
+      rows: 2,
+    },
+    {
+      id: "build",
+      name: "研发与实现",
+      description: "让每一个细节落地",
+      rows: 2,
+    },
+    {
+      id: "launch",
+      name: "测试与发布",
+      description: "准备好，迎接下一步",
+      rows: 1,
+    },
+  ],
+  tasks: [
+    {
+      id: "a",
+      categoryId: "design",
+      row: 0,
+      title: "需求调研与分析",
+      notes: "收集需求，明确项目的目标与范围。",
+      start: base - WEEK,
+      end: base + WEEK,
+    },
+    {
+      id: "b",
+      categoryId: "design",
+      row: 1,
+      title: "界面设计",
+      notes: "",
+      start: base,
+      end: base + 2 * WEEK,
+    },
+    {
+      id: "c",
+      categoryId: "build",
+      row: 0,
+      title: "核心功能开发",
+      notes: "",
+      start: base + WEEK,
+      end: base + 4 * WEEK,
+    },
+    {
+      id: "d",
+      categoryId: "build",
+      row: 1,
+      title: "跨平台适配",
+      notes: "",
+      start: base + 2 * WEEK,
+      end: base + 5 * WEEK,
+    },
+    {
+      id: "e",
+      categoryId: "launch",
+      row: 0,
+      title: "测试与发布",
+      notes: "",
+      start: base + 5 * WEEK,
+      end: base + 7 * WEEK,
+    },
+  ],
+};
+let state = initial,
+  saveError = false;
+try {
+  const stored = localStorage.getItem("gantt-studio-v1");
+  if (stored) state = validate(JSON.parse(stored));
+} catch {
+  saveError = true;
+}
+let scale = 112 / WEEK,
+  origin = base - 12 * WEEK,
+  weeks = 104,
+  drag = null;
+const esc = (s) =>
+  String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+const date = (t) => new Date(t).toISOString().slice(0, 10),
+  stamp = (t) => new Date(t).toISOString().slice(0, 16).replace("T", " ");
+function save() {
+  try {
+    localStorage.setItem("gantt-studio-v1", JSON.stringify(state));
+    $("#saved").textContent = "● 所有更改已保存";
+  } catch {
+    $("#saved").textContent = "保存失败，请导出备份";
+  }
+  renderStats();
+}
+$("#app").innerHTML =
+  `<aside class="rail"><div class="brand">g<span>·</span></div><div class="rail-item active" title="甘特图">▤</div><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1>项目时间线<span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="import">↥ 导入</button><button id="export">↧ 导出项目</button><button class="primary" id="addCategory">＋ 新建类别</button></div></section><section class="stats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>双击任务编辑 · 拖动边缘调整时间</span></footer></main><dialog id="editor"></dialog><input type="file" id="file" accept="application/json,.json" hidden>`;
+function renderStats() {
+  $("#taskCount").textContent = state.tasks.length;
+  $("#categoryCount").textContent = state.categories.length;
+  $("#duration").textContent = state.tasks.length
+    ? Math.ceil(
+        (Math.max(...state.tasks.map((t) => t.end)) -
+          Math.min(...state.tasks.map((t) => t.start))) /
+          DAY,
+      ) + " 天"
+    : "—";
+}
+function render() {
+  const width = weeks * WEEK * scale;
+  let html = `<div class="time-header"><div class="corner">任务类别 <span>${state.categories.length} 个类别</span></div><div class="ticks" style="width:${width}px">`;
+  for (let i = 0; i < weeks; i++) {
+    const t = origin + i * WEEK;
+    html += `<div class="tick ${t <= today && today < t + WEEK ? "current" : ""}" style="width:${WEEK * scale}px"><small>${new Date(t).getUTCFullYear()} / ${String(new Date(t).getUTCMonth() + 1).padStart(2, "0")}</small><b>${date(t).slice(5).replace("-", " / ")}</b><span>周一</span></div>`;
+  }
+  html += "</div></div>";
+  state.categories.forEach((c, index) => {
+    const color = colors[index % colors.length];
+    html += `<section class="category" data-category="${esc(c.id)}" style="height:${c.rows * 64 + 24}px;--accent:${color}"><div class="category-label"><div><span class="category-dot"></span><strong>${esc(c.name)}</strong><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别">···</button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px 64px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
+    state.tasks
+      .filter((t) => t.categoryId === c.id)
+      .forEach((t) => {
+        html += `<div class="task" data-task="${esc(t.id)}" style="left:${(t.start - origin) * scale}px;top:${12 + t.row * 64}px;width:${Math.max(3, (t.end - t.start) * scale)}px" title="${esc(t.title)}\n${stamp(t.start)} → ${stamp(t.end)}"><span class="handle left" data-resize="start"></span><strong>${esc(t.title)}</strong><small>${date(t.start).slice(5)} — ${date(t.end).slice(5)}</small><span class="handle right" data-resize="end"></span></div>`;
+      });
+    html += `<div class="today-line" style="left:${(today - origin) * scale}px"></div></div></section>`;
+  });
+  html += `<div class="empty-row"><div class="category-label"><button id="inlineCategory">＋ 添加类别</button></div><div style="width:${width}px"></div></div>`;
+  $("#canvas").innerHTML = html;
+  $("#zoomLabel").textContent = Math.round(((scale * WEEK) / 112) * 100) + "%";
+  renderStats();
+}
+function timeAt(e) {
+  const rect = $("#viewport").getBoundingClientRect();
+  return (
+    origin + (e.clientX - rect.left + $("#viewport").scrollLeft - 224) / scale
+  );
+}
+function ensureRange() {
+  const times = state.tasks.flatMap((t) => [t.start, t.end]);
+  const min = Math.min(base - 12 * WEEK, ...times) - 2 * WEEK,
+    max = Math.max(base + 92 * WEEK, ...times) + 4 * WEEK;
+  const next = monday(min);
+  const shift = (origin - next) * scale;
+  origin = next;
+  weeks = Math.ceil((max - origin) / WEEK);
+  render();
+  $("#viewport").scrollLeft += shift;
+}
+function goToday() {
+  $("#viewport").scrollLeft = Math.max(0, (today - origin - 2 * WEEK) * scale);
+}
+function zoom(factor, x = ($("#viewport").clientWidth - 224) / 2) {
+  const v = $("#viewport"),
+    time = origin + (v.scrollLeft + x) / scale;
+  scale = Math.max(35 / WEEK, Math.min(420 / WEEK, scale * factor));
+  render();
+  v.scrollLeft = (time - origin) * scale - x;
+}
+$("#zoomIn").onclick = () => zoom(1.25);
+$("#zoomOut").onclick = () => zoom(0.8);
+$("#today").onclick = goToday;
+$("#viewport").addEventListener(
+  "wheel",
+  (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      zoom(
+        e.deltaY < 0 ? 1.1 : 1 / 1.1,
+        e.clientX - $("#viewport").getBoundingClientRect().left - 224,
+      );
+    }
+  },
+  { passive: false },
+);
+function showEditor(html, submit) {
+  const d = $("#editor");
+  d.innerHTML = `<form>${html}<div class="dialog-actions"><button type="button" id="cancel">取消</button><button class="primary" type="submit">保存更改</button></div></form>`;
+  $("#cancel").onclick = () => d.close();
+  d.querySelector("form").onsubmit = (e) => {
+    e.preventDefault();
+    if (submit(new FormData(e.target)) !== false) d.close();
+  };
+  d.showModal();
+}
+function categoryEditor(id) {
+  const c = state.categories.find((c) => c.id === id);
+  showEditor(
+    `<h2>${c ? "编辑类别" : "新建类别"}</h2><label>类别名称<input name="name" maxlength="80" required value="${esc(c?.name)}" autofocus></label><label>类别说明<textarea name="description" maxlength="300">${esc(c?.description)}</textarea></label>${c ? '<button type="button" class="danger" id="deleteCategory">删除类别及其任务</button>' : ""}`,
+    (f) => {
+      if (!f.get("name").trim()) return false;
+      if (c) {
+        c.name = f.get("name").trim();
+        c.description = f.get("description");
+      } else
+        state.categories.push({
+          id: uid(),
+          name: f.get("name").trim(),
+          description: f.get("description"),
+          rows: 1,
+        });
+      render();
+      save();
+    },
+  );
+  if (c)
+    $("#deleteCategory").onclick = () => {
+      if (confirm("确定删除该类别及其中的所有任务？")) {
+        state.tasks = state.tasks.filter((t) => t.categoryId !== c.id);
+        state.categories = state.categories.filter((x) => x.id !== c.id);
+        $("#editor").close();
+        render();
+        save();
+      }
+    };
+}
+function taskEditor(task, isNew = false) {
+  showEditor(
+    `<h2>${isNew ? "新建任务" : "编辑任务"}</h2><label>任务名称<input name="title" maxlength="120" required value="${esc(task.title)}" autofocus></label><div class="date-fields"><label>开始时间<input type="datetime-local" name="start" required value="${new Date(task.start).toISOString().slice(0, 16)}"></label><label>结束时间<input type="datetime-local" name="end" required value="${new Date(task.end).toISOString().slice(0, 16)}"></label></div><label>任务内容<textarea name="notes" maxlength="5000" placeholder="记录任务目标、备注或待办事项…">${esc(task.notes)}</textarea></label><p class="form-error" id="formError"></p>${!isNew ? '<button type="button" class="danger" id="deleteTask">删除任务</button>' : ""}`,
+    (f) => {
+      const start = Date.parse(f.get("start") + "Z"),
+        end = Date.parse(f.get("end") + "Z");
+      if (
+        !f.get("title").trim() ||
+        !Number.isFinite(start) ||
+        !Number.isFinite(end) ||
+        end <= start
+      ) {
+        $("#formError").textContent =
+          "请填写任务名称，并确保结束时间晚于开始时间。";
+        return false;
+      }
+      if (
+        Math.max(today, end, ...state.tasks.map((t) => t.end)) -
+          Math.min(today, start, ...state.tasks.map((t) => t.start)) >
+        30 * 366 * DAY
+      ) {
+        $("#formError").textContent = "计划与今天的总跨度不能超过 30 年。";
+        return false;
+      }
+      Object.assign(task, {
+        title: f.get("title").trim(),
+        notes: f.get("notes"),
+        start,
+        end,
+      });
+      placeTask(state, task, task.categoryId, task.row);
+      if (isNew) state.tasks.push(task);
+      ensureRange();
+      save();
+    },
+  );
+  if (!isNew)
+    $("#deleteTask").onclick = () => {
+      state.tasks = state.tasks.filter((t) => t.id !== task.id);
+      $("#editor").close();
+      render();
+      save();
+    };
+}
+$("#addCategory").onclick = () => categoryEditor();
+$("#canvas").addEventListener("click", (e) => {
+  const b = e.target.closest(".edit-category");
+  if (b) categoryEditor(b.dataset.id);
+  if (e.target.closest("#inlineCategory")) categoryEditor();
+});
+$("#canvas").addEventListener("dblclick", (e) => {
+  const el = e.target.closest(".task");
+  if (el) {
+    taskEditor(state.tasks.find((t) => t.id === el.dataset.task));
+    return;
+  }
+  const track = e.target.closest(".track");
+  if (track) {
+    const c = state.categories.find((c) => c.id === track.dataset.category);
+    const start = snap(timeAt(e), e.ctrlKey || e.metaKey);
+    taskEditor(
+      {
+        id: uid(),
+        categoryId: c.id,
+        row: Math.min(
+          c.rows - 1,
+          Math.max(
+            0,
+            Math.floor(
+              (e.clientY - track.getBoundingClientRect().top - 12) / 64,
+            ),
+          ),
+        ),
+        title: "",
+        notes: "",
+        start,
+        end: start + WEEK,
+      },
+      true,
+    );
+  }
+});
+$("#viewport").addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || e.target.closest("button,.category-label,.corner"))
+    return;
+  const el = e.target.closest(".task");
+  if (el) {
+    const task = state.tasks.find((t) => t.id === el.dataset.task);
+    drag = {
+      type: e.target.dataset.resize || "move",
+      task,
+      original: { ...task },
+      x: e.clientX,
+      y: e.clientY,
+      time: timeAt(e),
+      moved: false,
+    };
+  } else {
+    drag = {
+      type: "pan",
+      x: e.clientX,
+      y: e.clientY,
+      scroll: $("#viewport").scrollLeft,
+      top: $("#viewport").scrollTop,
+    };
+  }
+  e.preventDefault();
+});
+document.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const v = $("#viewport");
+  if (drag.type === "pan") {
+    v.scrollLeft = drag.scroll + drag.x - e.clientX;
+    v.scrollTop = drag.top + drag.y - e.clientY;
+    return;
+  }
+  if (
+    Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) < 4 &&
+    !drag.moved
+  )
+    return;
+  drag.moved = true;
+  const free = e.ctrlKey || e.metaKey,
+    delta = timeAt(e) - drag.time,
+    t = drag.task,
+    o = drag.original;
+  if (drag.type === "move") {
+    t.start = snap(o.start + delta, free);
+    t.end = t.start + o.end - o.start;
+  } else if (drag.type === "start")
+    t.start = Math.min(
+      snap(o.start + delta, free),
+      o.end - (free ? 60000 : WEEK),
+    );
+  else
+    t.end = Math.max(
+      snap(o.end + delta, free),
+      o.start + (free ? 60000 : WEEK),
+    );
+  render();
+  const track = document
+    .elementsFromPoint(e.clientX, e.clientY)
+    .map((el) => el.closest(".track"))
+    .find(Boolean);
+  drag.target = null;
+  if (track && drag.type === "move") {
+    const rect = track.getBoundingClientRect(),
+      c = state.categories.find((c) => c.id === track.dataset.category),
+      y = e.clientY - rect.top;
+    drag.target = {
+      category: c.id,
+      row: Math.max(0, Math.min(c.rows - 1, Math.floor((y - 12) / 64))),
+      edge: y < 13 ? "top" : y > rect.height - 13 ? "bottom" : null,
+    };
+    if (drag.target.edge)
+      track.querySelector(".edge." + drag.target.edge).classList.add("visible");
+  }
+  const node = [...document.querySelectorAll(".task")].find(
+    (el) => el.dataset.task === t.id,
+  );
+  node?.classList.add("dragging");
+  if (node && track && drag.target) {
+    track.append(node);
+    node.style.top = `${12 + drag.target.row * 64}px`;
+  }
+  if (e.clientX > v.getBoundingClientRect().right - 40) v.scrollLeft += 16;
+  else if (e.clientX < v.getBoundingClientRect().left + 250) v.scrollLeft -= 16;
+});
+function finish(cancel = false) {
+  if (!drag) return;
+  if (drag.task && drag.moved) {
+    if (cancel) Object.assign(drag.task, drag.original);
+    else if (drag.moved) {
+      const target = drag.target;
+      placeTask(
+        state,
+        drag.task,
+        target?.category || drag.task.categoryId,
+        target?.row ?? drag.task.row,
+        target?.edge,
+      );
+      save();
+    }
+    render();
+  }
+  drag = null;
+}
+document.addEventListener("pointerup", () => finish());
+document.addEventListener("pointercancel", () => finish(true));
+window.addEventListener("blur", () => finish(true));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") finish(true);
+});
+$("#export").onclick = () => {
+  const blob = new Blob([JSON.stringify({ ...state, version: 1 }, null, 2)], {
+      type: "application/json",
+    }),
+    url = URL.createObjectURL(blob),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = `gantt-project-${date(today)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+$("#import").onclick = () => $("#file").click();
+$("#file").onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    if (file.size > 5e6) throw Error("文件不能超过 5 MB");
+    const next = validate(JSON.parse(await file.text()));
+    if (confirm("导入会替换当前项目，建议先导出备份。继续？")) {
+      state = next;
+      ensureRange();
+      goToday();
+      save();
+    }
+  } catch (error) {
+    alert("导入失败：" + error.message);
+  }
+  e.target.value = "";
+};
+render();
+ensureRange();
+goToday();
+if (saveError) $("#saved").textContent = "历史数据无法读取，请导入备份";
