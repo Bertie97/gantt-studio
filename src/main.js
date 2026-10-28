@@ -1,5 +1,19 @@
 import "./style.css";
-import { DAY, WEEK, monday, snap, placeTask, validate } from "./model.js";
+import {
+  DAY,
+  WEEK,
+  monday,
+  snap,
+  placeTask,
+  validate,
+  linkTasks,
+  scheduleChange,
+  settleRows,
+  pruneDependencies,
+  deleteEmptyRow,
+  assertTimeRange,
+} from "./model.js";
+import { curve, exportImage, download } from "./export.js";
 const $ = (s) => document.querySelector(s),
   uid = () => crypto.randomUUID();
 const today = Date.UTC(
@@ -86,6 +100,8 @@ try {
 } catch {
   saveError = true;
 }
+state.dependencies ??= [];
+state.milestones ??= [];
 let scale = 112 / WEEK,
   origin = base - 12 * WEEK,
   weeks = 104,
@@ -110,7 +126,7 @@ function save() {
   renderStats();
 }
 $("#app").innerHTML =
-  `<aside class="rail"><div class="brand">g<span>·</span></div><div class="rail-item active" title="甘特图">▤</div><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1>项目时间线<span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="import">↥ 导入</button><button id="export">↧ 导出项目</button><button class="primary" id="addCategory">＋ 新建类别</button></div></section><section class="stats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>双击任务编辑 · 拖动边缘调整时间</span></footer></main><dialog id="editor"></dialog><input type="file" id="file" accept="application/json,.json" hidden>`;
+  `<aside class="rail"><div class="brand">g<span>·</span></div><div class="rail-item active" title="甘特图">▤</div><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1>项目时间线<span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="import">↥ 导入</button><div class="export-control"><button id="export" aria-haspopup="menu" aria-expanded="false">↧ 导出项目 ▾</button><div id="exportMenu" class="export-menu" role="menu" hidden><button role="menuitem" data-export="json">JSON <small>可编辑的项目备份</small></button><button role="menuitem" data-export="png">PNG <small>高清图片</small></button><button role="menuitem" data-export="svg">SVG <small>可缩放矢量图</small></button></div></div><button class="primary" id="addCategory">＋ 新建类别</button></div></section><section class="stats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="addMilestone">◇ 关键点</button><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>Shift 拖动任务建立依赖 · 双击编辑</span></footer></main><dialog id="editor"></dialog><div id="notice" role="status"></div><input type="file" id="file" accept="application/json,.json" hidden>`;
 function renderStats() {
   $("#taskCount").textContent = state.tasks.length;
   $("#categoryCount").textContent = state.categories.length;
@@ -129,10 +145,21 @@ function render() {
     const t = origin + i * WEEK;
     html += `<div class="tick ${t <= today && today < t + WEEK ? "current" : ""}" style="width:${WEEK * scale}px"><small>${new Date(t).getUTCFullYear()} / ${String(new Date(t).getUTCMonth() + 1).padStart(2, "0")}</small><b>${date(t).slice(5).replace("-", " / ")}</b><span>周一</span></div>`;
   }
+  html += `</div></div><div class="milestone-row"><div class="category-label">◇ 重要时间节点</div><div class="milestone-track" style="width:${width}px">`;
+  state.milestones.forEach((m) => {
+    html += `<button class="milestone" data-milestone="${esc(m.id)}" style="left:${(m.time - origin) * scale}px" title="${esc(m.title)} · ${stamp(m.time)}">◆ ${esc(m.title)} <small>${date(m.time).slice(5)}</small></button>`;
+  });
   html += "</div></div>";
   state.categories.forEach((c, index) => {
     const color = colors[index % colors.length];
     html += `<section class="category" data-category="${esc(c.id)}" style="height:${c.rows * 64 + 24}px;--accent:${color}"><div class="category-label"><div><span class="category-dot"></span><strong>${esc(c.name)}</strong><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别">···</button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px 64px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
+    for (let row = 0; row < c.rows; row++) {
+      if (
+        c.rows > 1 &&
+        !state.tasks.some((t) => t.categoryId === c.id && t.row === row)
+      )
+        html += `<div class="row-action" style="top:${12 + row * 64}px"><button data-delete-row="${row}" data-row-category="${esc(c.id)}" title="删除此空行" aria-label="${esc(c.name)}：删除第 ${row + 1} 空行">− 删除空行 <small>第 ${row + 1} 行</small></button></div>`;
+    }
     state.tasks
       .filter((t) => t.categoryId === c.id)
       .forEach((t) => {
@@ -144,6 +171,7 @@ function render() {
   $("#canvas").innerHTML = html;
   $("#zoomLabel").textContent = Math.round(((scale * WEEK) / 112) * 100) + "%";
   renderStats();
+  drawOverlay();
 }
 function timeAt(e) {
   const rect = $("#viewport").getBoundingClientRect();
@@ -152,7 +180,10 @@ function timeAt(e) {
   );
 }
 function ensureRange() {
-  const times = state.tasks.flatMap((t) => [t.start, t.end]);
+  const times = [
+    ...state.tasks.flatMap((t) => [t.start, t.end]),
+    ...state.milestones.map((m) => m.time),
+  ];
   const min = Math.min(base - 12 * WEEK, ...times) - 2 * WEEK,
     max = Math.max(base + 92 * WEEK, ...times) + 4 * WEEK;
   const next = monday(min);
@@ -198,6 +229,87 @@ function showEditor(html, submit) {
   };
   d.showModal();
 }
+let noticeTimer;
+function notify(message) {
+  $("#notice").textContent = message;
+  $("#notice").classList.add("show");
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => $("#notice").classList.remove("show"), 4500);
+}
+function drawOverlay(pointer) {
+  $("#connections")?.remove();
+  const canvas = $("#canvas"),
+    rect = canvas.getBoundingClientRect(),
+    width = canvas.scrollWidth,
+    height = canvas.scrollHeight;
+  const points = new Map(
+    [...canvas.querySelectorAll(".task")].map((el) => {
+      const r = el.getBoundingClientRect();
+      return [
+        el.dataset.task,
+        {
+          left: r.left - rect.left,
+          right: r.right - rect.left,
+          y: r.top - rect.top + r.height / 2,
+        },
+      ];
+    }),
+  );
+  let paths = `<defs><marker id="depArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#9484c9"/></marker></defs>`;
+  for (const edge of state.dependencies) {
+    const a = points.get(edge.from),
+      b = points.get(edge.to);
+    if (a && b)
+      paths += `<path class="dependency-line" d="${curve(a.right, a.y, b.left, b.y)}" marker-end="url(#depArrow)"/>`;
+  }
+  for (const m of state.milestones) {
+    const x = 224 + (m.time - origin) * scale;
+    paths += `<path class="milestone-line" d="M ${x} 126 V ${height - 74}"/>`;
+  }
+  if (pointer && drag?.type === "link") {
+    const a = points.get(drag.task.id);
+    if (a)
+      paths += `<path class="dependency-line preview" d="${curve(a.right, a.y, pointer.clientX - rect.left, pointer.clientY - rect.top)}" marker-end="url(#depArrow)"/>`;
+  }
+  canvas.insertAdjacentHTML(
+    "beforeend",
+    `<svg id="connections" width="${width}" height="${height}" aria-hidden="true">${paths}</svg>`,
+  );
+}
+function milestoneEditor(
+  m = { id: uid(), title: "", time: today },
+  isNew = true,
+) {
+  showEditor(
+    `<h2>${isNew ? "添加关键点" : "编辑关键点"}</h2><label>关键点名称<input name="title" maxlength="120" value="${esc(m.title)}" required autofocus></label><label>重要时间<input type="datetime-local" name="time" value="${new Date(m.time).toISOString().slice(0, 16)}" required></label><p id="formError" class="form-error"></p>${isNew ? "" : '<button type="button" id="deleteMilestone" class="danger">删除关键点</button>'}`,
+    (f) => {
+      const time = Date.parse(f.get("time") + "Z"),
+        title = f.get("title").trim();
+      if (!title || !Number.isFinite(time)) return false;
+      const next = { ...m, title, time };
+      const milestones = isNew
+        ? [...state.milestones, next]
+        : state.milestones.map((x) => (x.id === m.id ? next : x));
+      try {
+        assertTimeRange({ ...state, milestones });
+      } catch (e) {
+        $("#formError").textContent = e.message;
+        return false;
+      }
+      state.milestones = milestones;
+      ensureRange();
+      save();
+    },
+  );
+  if (!isNew)
+    $("#deleteMilestone").onclick = () => {
+      state.milestones = state.milestones.filter((x) => x.id !== m.id);
+      $("#editor").close();
+      render();
+      save();
+    };
+}
+$("#addMilestone").onclick = () => milestoneEditor();
 function categoryEditor(id) {
   const c = state.categories.find((c) => c.id === id);
   showEditor(
@@ -223,6 +335,7 @@ function categoryEditor(id) {
       if (confirm("确定删除该类别及其中的所有任务？")) {
         state.tasks = state.tasks.filter((t) => t.categoryId !== c.id);
         state.categories = state.categories.filter((x) => x.id !== c.id);
+        pruneDependencies(state);
         $("#editor").close();
         render();
         save();
@@ -253,21 +366,57 @@ function taskEditor(task, isNew = false) {
         $("#formError").textContent = "计划与今天的总跨度不能超过 30 年。";
         return false;
       }
+      const before = structuredClone(state);
       Object.assign(task, {
         title: f.get("title").trim(),
         notes: f.get("notes"),
         start,
         end,
       });
-      placeTask(state, task, task.categoryId, task.row);
       if (isNew) state.tasks.push(task);
+      try {
+        if (!isNew) scheduleChange(state, before, task.id);
+        settleRows(state);
+      } catch (error) {
+        state = before;
+        if (!isNew) task = state.tasks.find((t) => t.id === task.id);
+        $("#formError").textContent = error.message;
+        return false;
+      }
       ensureRange();
       save();
     },
   );
+  if (!isNew) {
+    const related = state.dependencies.filter(
+      (e) => e.from === task.id || e.to === task.id,
+    );
+    if (related.length) {
+      $("#deleteTask").insertAdjacentHTML(
+        "beforebegin",
+        `<div class="dependency-list"><strong>任务依赖 · 完成后开始</strong>${related.map((e) => `<div><span>${esc(state.tasks.find((t) => t.id === e.from).title)} → ${esc(state.tasks.find((t) => t.id === e.to).title)}</span><button type="button" data-unlink-from="${esc(e.from)}" data-unlink-to="${esc(e.to)}">解除</button></div>`).join("")}</div>`,
+      );
+      $("#editor")
+        .querySelectorAll("[data-unlink-from]")
+        .forEach(
+          (b) =>
+            (b.onclick = () => {
+              state.dependencies = state.dependencies.filter(
+                (e) =>
+                  e.from !== b.dataset.unlinkFrom ||
+                  e.to !== b.dataset.unlinkTo,
+              );
+              b.parentElement.remove();
+              render();
+              save();
+            }),
+        );
+    }
+  }
   if (!isNew)
     $("#deleteTask").onclick = () => {
       state.tasks = state.tasks.filter((t) => t.id !== task.id);
+      pruneDependencies(state);
       $("#editor").close();
       render();
       save();
@@ -275,11 +424,32 @@ function taskEditor(task, isNew = false) {
 }
 $("#addCategory").onclick = () => categoryEditor();
 $("#canvas").addEventListener("click", (e) => {
+  const rowButton = e.target.closest("[data-delete-row]");
+  if (rowButton) {
+    deleteEmptyRow(
+      state,
+      rowButton.dataset.rowCategory,
+      Number(rowButton.dataset.deleteRow),
+    );
+    render();
+    save();
+    return;
+  }
+  const marker = e.target.closest("[data-milestone]");
+  if (marker && performance.now() > suppressMarkerClickUntil)
+    milestoneEditor(
+      state.milestones.find((m) => m.id === marker.dataset.milestone),
+      false,
+    );
   const b = e.target.closest(".edit-category");
   if (b) categoryEditor(b.dataset.id);
   if (e.target.closest("#inlineCategory")) categoryEditor();
 });
 $("#canvas").addEventListener("dblclick", (e) => {
+  if (e.target.closest(".milestone-track") && !e.target.closest("button")) {
+    milestoneEditor({ id: uid(), title: "", time: snap(timeAt(e), true) });
+    return;
+  }
   const el = e.target.closest(".task");
   if (el) {
     taskEditor(state.tasks.find((t) => t.id === el.dataset.task));
@@ -311,14 +481,33 @@ $("#canvas").addEventListener("dblclick", (e) => {
     );
   }
 });
+let suppressMarkerClickUntil = 0;
 $("#viewport").addEventListener("pointerdown", (e) => {
+  const marker = e.target.closest("[data-milestone]");
+  if (e.button === 0 && marker) {
+    const milestone = state.milestones.find(
+      (m) => m.id === marker.dataset.milestone,
+    );
+    drag = {
+      type: "milestone",
+      milestone,
+      original: milestone.time,
+      x: e.clientX,
+      y: e.clientY,
+      time: timeAt(e),
+      moved: false,
+    };
+    e.preventDefault();
+    return;
+  }
   if (e.button !== 0 || e.target.closest("button,.category-label,.corner"))
     return;
   const el = e.target.closest(".task");
   if (el) {
     const task = state.tasks.find((t) => t.id === el.dataset.task);
     drag = {
-      type: e.target.dataset.resize || "move",
+      type: e.shiftKey ? "link" : e.target.dataset.resize || "move",
+      before: structuredClone(state),
       task,
       original: { ...task },
       x: e.clientX,
@@ -351,6 +540,46 @@ document.addEventListener("pointermove", (e) => {
   )
     return;
   drag.moved = true;
+  if (drag.type === "milestone") {
+    const next = snap(
+      drag.original + timeAt(e) - drag.time,
+      e.ctrlKey || e.metaKey,
+    );
+    const previous = drag.milestone.time;
+    drag.milestone.time = next;
+    try {
+      assertTimeRange(state);
+    } catch (error) {
+      drag.milestone.time = previous;
+      notify(error.message);
+    }
+    render();
+    [...document.querySelectorAll(".milestone")]
+      .find((el) => el.dataset.milestone === drag.milestone.id)
+      ?.classList.add("dragging");
+    if (e.clientX > v.getBoundingClientRect().right - 40) v.scrollLeft += 16;
+    else if (e.clientX < v.getBoundingClientRect().left + 250)
+      v.scrollLeft -= 16;
+    return;
+  }
+  if (drag.type === "link") {
+    document
+      .querySelectorAll(".link-target")
+      .forEach((el) => el.classList.remove("link-target"));
+    const target = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest(".task");
+    drag.linkTo = target?.dataset.task;
+    if (target && drag.linkTo !== drag.task.id)
+      target.classList.add("link-target");
+    drawOverlay(e);
+    return;
+  }
+  for (const original of drag.before.tasks)
+    Object.assign(
+      state.tasks.find((t) => t.id === original.id),
+      original,
+    );
   const free = e.ctrlKey || e.metaKey,
     delta = timeAt(e) - drag.time,
     t = drag.task,
@@ -368,6 +597,16 @@ document.addEventListener("pointermove", (e) => {
       snap(o.end + delta, free),
       o.start + (free ? 60000 : WEEK),
     );
+  try {
+    scheduleChange(state, drag.before, t.id);
+  } catch (error) {
+    for (const original of drag.before.tasks)
+      Object.assign(
+        state.tasks.find((t) => t.id === original.id),
+        original,
+      );
+    notify(error.message);
+  }
   render();
   const track = document
     .elementsFromPoint(e.clientX, e.clientY)
@@ -394,13 +633,41 @@ document.addEventListener("pointermove", (e) => {
     track.append(node);
     node.style.top = `${12 + drag.target.row * 64}px`;
   }
+  drawOverlay();
   if (e.clientX > v.getBoundingClientRect().right - 40) v.scrollLeft += 16;
   else if (e.clientX < v.getBoundingClientRect().left + 250) v.scrollLeft -= 16;
 });
 function finish(cancel = false) {
   if (!drag) return;
+  if (drag.type === "milestone") {
+    if (drag.moved) {
+      suppressMarkerClickUntil = performance.now() + 350;
+      if (cancel) drag.milestone.time = drag.original;
+      else save();
+      ensureRange();
+    }
+    drag = null;
+    return;
+  }
+  if (drag.type === "link") {
+    if (!cancel && drag.moved && drag.linkTo) {
+      try {
+        linkTasks(state, drag.task.id, drag.linkTo);
+        assertTimeRange(state);
+        settleRows(state);
+        save();
+        notify("依赖已建立：后项在前项完成后开始");
+      } catch (error) {
+        state = drag.before;
+        notify(error.message);
+      }
+    }
+    drag = null;
+    ensureRange();
+    return;
+  }
   if (drag.task && drag.moved) {
-    if (cancel) Object.assign(drag.task, drag.original);
+    if (cancel) state = drag.before;
     else if (drag.moved) {
       const target = drag.target;
       placeTask(
@@ -410,9 +677,10 @@ function finish(cancel = false) {
         target?.row ?? drag.task.row,
         target?.edge,
       );
+      settleRows(state);
       save();
     }
-    render();
+    ensureRange();
   }
   drag = null;
 }
@@ -422,16 +690,66 @@ window.addEventListener("blur", () => finish(true));
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") finish(true);
 });
+function closeExportMenu() {
+  $("#exportMenu").hidden = true;
+  $("#export").setAttribute("aria-expanded", "false");
+}
 $("#export").onclick = () => {
-  const blob = new Blob([JSON.stringify({ ...state, version: 1 }, null, 2)], {
-      type: "application/json",
-    }),
-    url = URL.createObjectURL(blob),
-    a = document.createElement("a");
-  a.href = url;
-  a.download = `gantt-project-${date(today)}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const menu = $("#exportMenu");
+  menu.hidden = !menu.hidden;
+  $("#export").setAttribute("aria-expanded", String(!menu.hidden));
+};
+$("#export").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    $("#exportMenu").hidden = false;
+    $("#export").setAttribute("aria-expanded", "true");
+    $("#exportMenu button").focus();
+  }
+});
+$("#exportMenu").addEventListener("keydown", (e) => {
+  const items = [...$("#exportMenu").querySelectorAll("button")],
+    index = items.indexOf(document.activeElement);
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    items[
+      (index + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length
+    ].focus();
+  }
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".export-control")) closeExportMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("#exportMenu").hidden) {
+    closeExportMenu();
+    $("#export").focus();
+  }
+});
+$("#exportMenu").onclick = async (e) => {
+  const button = e.target.closest("[data-export]");
+  if (!button) return;
+  const format = button.dataset.export;
+  closeExportMenu();
+  $("#export").disabled = true;
+  $("#export").textContent = "正在导出…";
+  try {
+    if (format === "json")
+      download(
+        new Blob([JSON.stringify({ ...state, version: 2 }, null, 2)], {
+          type: "application/json",
+        }),
+        `gantt-project-${date(today)}.json`,
+      );
+    else await exportImage(state, format);
+    notify("导出完成");
+  } catch (error) {
+    notify("导出失败：" + error.message);
+  } finally {
+    $("#export").disabled = false;
+    $("#export").textContent = "↧ 导出项目 ▾";
+    $("#export").focus();
+  }
 };
 $("#import").onclick = () => $("#file").click();
 $("#file").onchange = async (e) => {

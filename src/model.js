@@ -66,7 +66,7 @@ export function validate(data) {
       typeof c.name !== "string" ||
       !Number.isInteger(c.rows) ||
       c.rows < 1 ||
-      c.rows > 500
+      c.rows > 10000
     )
       throw Error("类别数据无效");
     ids.add(c.id);
@@ -98,6 +98,162 @@ export function validate(data) {
   )
     throw Error("时间范围须位于今天前后合计 30 年内");
   const result = structuredClone(data);
-  for (const t of result.tasks) placeTask(result, t, t.categoryId, t.row);
+  result.dependencies ??= [];
+  result.milestones ??= [];
+  if (
+    !Array.isArray(result.dependencies) ||
+    result.dependencies.length > 20000 ||
+    !Array.isArray(result.milestones) ||
+    result.milestones.length > 1000
+  )
+    throw Error("关键点或依赖数据无效");
+  const mids = new Set();
+  for (const m of result.milestones) {
+    if (
+      !m ||
+      typeof m.id !== "string" ||
+      mids.has(m.id) ||
+      typeof m.title !== "string" ||
+      !m.title.trim() ||
+      m.title.length > 120 ||
+      !Number.isFinite(m.time)
+    )
+      throw Error("关键点数据无效");
+    mids.add(m.id);
+  }
+  dependencyOrder(result);
+  enforceDependencies(result);
+  assertTimeRange(result);
+  settleRows(result);
   return result;
+}
+
+// Dependencies are finish-to-start edges in a directed acyclic graph.
+export function dependencyOrder(state) {
+  const tasks = new Map(state.tasks.map((t) => [t.id, t]));
+  const incoming = new Map(state.tasks.map((t) => [t.id, 0]));
+  const outgoing = new Map(state.tasks.map((t) => [t.id, []]));
+  const seen = new Set();
+  for (const edge of state.dependencies ?? []) {
+    if (
+      !edge ||
+      !tasks.has(edge.from) ||
+      !tasks.has(edge.to) ||
+      edge.from === edge.to
+    )
+      throw Error("依赖关系指向无效任务");
+    const key = JSON.stringify([edge.from, edge.to]);
+    if (seen.has(key)) throw Error("不能重复连接相同任务");
+    seen.add(key);
+    outgoing.get(edge.from).push(edge.to);
+    incoming.set(edge.to, incoming.get(edge.to) + 1);
+  }
+  const queue = [...incoming].filter(([, n]) => n === 0).map(([id]) => id);
+  for (let i = 0; i < queue.length; i++) {
+    for (const id of outgoing.get(queue[i])) {
+      incoming.set(id, incoming.get(id) - 1);
+      if (incoming.get(id) === 0) queue.push(id);
+    }
+  }
+  if (queue.length !== tasks.size) throw Error("不能建立循环依赖");
+  return queue;
+}
+
+export function linkTasks(state, from, to) {
+  const edge = { from, to };
+  const next = {
+    ...state,
+    dependencies: [...(state.dependencies ?? []), edge],
+  };
+  dependencyOrder(next);
+  state.dependencies = next.dependencies;
+  enforceDependencies(state);
+}
+
+export function enforceDependencies(state) {
+  const tasks = new Map(state.tasks.map((t) => [t.id, t]));
+  for (const id of dependencyOrder(state)) {
+    const t = tasks.get(id);
+    const earliest = Math.max(
+      -Infinity,
+      ...(state.dependencies ?? [])
+        .filter((e) => e.to === id)
+        .map((e) => tasks.get(e.from).end),
+    );
+    if (t.start < earliest) {
+      t.end += earliest - t.start;
+      t.start = earliest;
+    }
+  }
+}
+
+// Recompute from the gesture snapshot, never from the previous pointer frame.
+// This prevents rounding drift and makes Escape restore the entire chain.
+export function scheduleChange(state, before, editedId) {
+  const tasks = new Map(state.tasks.map((t) => [t.id, t]));
+  const old = new Map(before.tasks.map((t) => [t.id, t]));
+  const affected = new Set([editedId]);
+  for (const id of dependencyOrder(state)) {
+    const t = tasks.get(id),
+      incoming = (state.dependencies ?? []).filter((e) => e.to === id);
+    if (id === editedId) {
+      const earliest = Math.max(
+        -Infinity,
+        ...incoming.map((e) => tasks.get(e.from).end),
+      );
+      if (t.start < earliest) {
+        t.end += earliest - t.start;
+        t.start = earliest;
+      }
+    } else if (incoming.some((e) => affected.has(e.from))) {
+      affected.add(id);
+      const start = Math.max(
+        ...incoming.map(
+          (e) =>
+            tasks.get(e.from).end +
+            Math.max(0, old.get(id).start - old.get(e.from).end),
+        ),
+      );
+      t.start = start;
+      t.end = start + old.get(id).end - old.get(id).start;
+    }
+  }
+  assertTimeRange(state);
+}
+
+export function assertTimeRange(state) {
+  const times = [
+    Date.now(),
+    ...state.tasks.flatMap((t) => [t.start, t.end]),
+    ...(state.milestones ?? []).map((m) => m.time),
+  ];
+  if (
+    times.some((t) => !Number.isFinite(t)) ||
+    Math.max(...times) - Math.min(...times) > 30 * 366 * DAY
+  )
+    throw Error("计划与今天的总跨度不能超过 30 年");
+}
+
+export function settleRows(state) {
+  for (const t of state.tasks) placeTask(state, t, t.categoryId, t.row);
+}
+
+export function pruneDependencies(state) {
+  const ids = new Set(state.tasks.map((t) => t.id));
+  state.dependencies = (state.dependencies ?? []).filter(
+    (e) => ids.has(e.from) && ids.has(e.to),
+  );
+}
+
+export function deleteEmptyRow(state, categoryId, row) {
+  const category = state.categories.find((c) => c.id === categoryId);
+  if (!category || !Number.isInteger(row) || row < 0 || row >= category.rows)
+    throw Error("行不存在");
+  if (category.rows <= 1) throw Error("每个类别至少保留一行用于新建任务");
+  if (state.tasks.some((t) => t.categoryId === categoryId && t.row === row))
+    throw Error("只能删除空行");
+  state.tasks
+    .filter((t) => t.categoryId === categoryId && t.row > row)
+    .forEach((t) => t.row--);
+  category.rows--;
 }

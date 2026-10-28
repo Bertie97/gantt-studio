@@ -619,3 +619,188 @@ textarea {
 .category-label p {
   margin: 6px 0;
 }
+#canvas {
+  position: relative;
+}
+#connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+}
+.dependency-line {
+  fill: none;
+  stroke: #9484c9;
+  stroke-width: 1.8;
+  stroke-dasharray: 6 5;
+}
+.dependency-line.preview {
+  stroke: #6656d5;
+  stroke-width: 2.5;
+}
+.milestone-line {
+  fill: none;
+  stroke: #cf9250;
+  stroke-dasharray: 3 5;
+  opacity: 0.55;
+}
+.milestone-row {
+  display: flex;
+  height: 48px;
+  border-bottom: 1px solid #eceaf3;
+  background: #fffdf8;
+}
+.milestone-row .category-label {
+  padding: 16px 18px;
+  background: #fffdf8;
+  color: #b58a50;
+  font-size: 11px;
+}
+.milestone-track {
+  position: relative;
+  flex-shrink: 0;
+}
+.milestone {
+  position: absolute;
+  top: 9px;
+  padding: 6px 9px;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #fff8e9;
+  color: #b58340;
+  border-color: #f0dfbf;
+  font-size: 11px;
+  z-index: 3;
+  transform: translateX(-7px);
+}
+.milestone small {
+  margin-left: 7px;
+  opacity: 0.7;
+  font-size: 9px;
+}
+.task.link-target {
+  outline: 2px solid #7568db;
+  outline-offset: 3px;
+}
+#notice {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #38334e;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px #29213c25;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 0.2s;
+}
+#notice.show {
+  opacity: 1;
+}
+.dependency-list {
+  padding: 14px 0;
+  border-top: 1px solid #eceaf3;
+  margin-top: 18px;
+}
+.dependency-list > strong {
+  display: block;
+  color: #777187;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.dependency-list > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.dependency-list span {
+  font-size: 11px;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.dependency-list button {
+  font-size: 11px;
+  padding: 5px 8px;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.milestone-row .category-label {
+  z-index: 4;
+}
+.milestone {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.milestone.dragging {
+  cursor: grabbing;
+  opacity: 0.7;
+  box-shadow: 0 4px 12px #cf925033;
+}
+.row-action {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 48px;
+  pointer-events: none;
+  z-index: 2;
+}
+.row-action button {
+  position: sticky;
+  left: 236px;
+  margin: 10px 12px;
+  pointer-events: auto;
+  font-size: 10px;
+  padding: 6px 9px;
+  color: #a29bb4;
+  border: 1px dashed #dfdbe9;
+  background: #fcfbff;
+}
+.row-action button:hover {
+  color: #aa6470;
+  border-color: #dcaeb7;
+  background: #fff7f8;
+}
+.row-action small {
+  margin-left: 6px;
+  opacity: 0.65;
+}
+.export-control {
+  position: relative;
+}
+.export-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 235px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e6e2ef;
+  border-radius: 10px;
+  box-shadow: 0 12px 36px #35304922;
+  z-index: 20;
+}
+.export-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  padding: 12px;
+  color: #6c5baf;
+  font-weight: 600;
+}
+.export-menu small {
+  margin-left: 12px;
+  color: #9a93a9;
+  font-weight: 400;
+}
