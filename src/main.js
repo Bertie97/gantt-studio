@@ -1,5 +1,11 @@
 import "./style.css";
 import {
+  loadLibrary,
+  persistProject,
+  projectState,
+  LIBRARY_KEY,
+} from "./projects.js";
+import {
   DAY,
   WEEK,
   monday,
@@ -93,13 +99,19 @@ const initial = {
   ],
 };
 let state = initial,
+  library,
+  libraryBlocked = false,
   saveError = false;
 try {
-  const stored = localStorage.getItem("gantt-studio-v1");
-  if (stored) state = validate(JSON.parse(stored));
+  library = loadLibrary(localStorage, initial);
+  state = projectState(library);
 } catch {
+  libraryBlocked = true;
   saveError = true;
+  state = structuredClone(initial);
 }
+state.name ??= "项目时间线";
+state.settings ??= { showTaskDates: true, fontSize: 14 };
 state.dependencies ??= [];
 state.milestones ??= [];
 let scale = 112 / WEEK,
@@ -118,15 +130,19 @@ const date = (t) => new Date(t).toISOString().slice(0, 10),
   stamp = (t) => new Date(t).toISOString().slice(0, 16).replace("T", " ");
 function save() {
   try {
-    localStorage.setItem("gantt-studio-v1", JSON.stringify(state));
+    if (libraryBlocked) throw Error("项目库无法读取");
+    library = persistProject(localStorage, library, state);
     $("#saved").textContent = "● 所有更改已保存";
   } catch {
     $("#saved").textContent = "保存失败，请导出备份";
+    return false;
   }
   renderStats();
+  renderProjectList();
+  return true;
 }
 $("#app").innerHTML =
-  `<aside class="rail"><div class="brand">g<span>·</span></div><div class="rail-item active" title="甘特图">▤</div><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1>项目时间线<span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="import">↥ 导入</button><div class="export-control"><button id="export" aria-haspopup="menu" aria-expanded="false">↧ 导出项目 ▾</button><div id="exportMenu" class="export-menu" role="menu" hidden><button role="menuitem" data-export="json">JSON <small>可编辑的项目备份</small></button><button role="menuitem" data-export="png">PNG <small>高清图片</small></button><button role="menuitem" data-export="svg">SVG <small>可缩放矢量图</small></button></div></div><button class="primary" id="addCategory">＋ 新建类别</button></div></section><section class="stats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="addMilestone">◇ 关键点</button><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>Shift 拖动任务建立依赖 · 双击编辑</span></footer></main><dialog id="editor"></dialog><div id="notice" role="status"></div><input type="file" id="file" accept="application/json,.json" hidden>`;
+  `<aside class="rail"><div class="brand">g<span>·</span></div><button class="rail-item active" id="projectsButton" title="项目列表" aria-label="项目列表" aria-expanded="false">▤</button><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1><span id="projectTitle" tabindex="0" title="双击修改项目名称"></span><input id="projectNameInput" aria-label="项目名称" maxlength="100" hidden><span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="newProject">＋ 新建项目</button><button id="import">↥ 导入</button><div class="export-control"><button id="export" aria-haspopup="menu" aria-expanded="false">↧ 导出项目 ▾</button><div id="exportMenu" class="export-menu" role="menu" hidden><button role="menuitem" data-export="json">JSON <small>可编辑的项目备份</small></button><button role="menuitem" data-export="png">PNG <small>高清图片</small></button><button role="menuitem" data-export="jpg">JPG <small>高清照片格式</small></button><button role="menuitem" data-export="svg">SVG <small>可缩放矢量图</small></button></div></div><button class="primary" id="addCategory">＋ 新建类别</button></div></section><section class="stats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="display-settings"><label><input type="checkbox" id="showTaskDates" checked> 显示任务时间区间</label><label>文字大小 <select id="fontSize"><option value="12">小</option><option value="14" selected>标准</option><option value="16">大</option><option value="18">特大</option></select></label><span>同时应用于 PNG / JPG / SVG 导出</span></div><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="addMilestone">◇ 关键点</button><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>Shift 拖动任务建立依赖 · 双击编辑</span></footer></main><div id="projectBackdrop" hidden></div><aside id="projectPanel" hidden aria-label="本地项目"><div class="project-panel-header"><h2>我的项目</h2><button id="closeProjects" aria-label="关闭项目列表">×</button></div><p>保存在此设备 · 自动保存</p><button id="panelNewProject" class="primary">＋ 新建项目</button><div id="projectList"></div></aside><dialog id="editor"></dialog><div id="notice" role="status"></div><input type="file" id="file" accept="application/json,.json" hidden>`;
 function renderStats() {
   $("#taskCount").textContent = state.tasks.length;
   $("#categoryCount").textContent = state.categories.length;
@@ -139,6 +155,8 @@ function renderStats() {
     : "—";
 }
 function render() {
+  applyDisplaySettings();
+  $("#projectTitle").textContent = state.name;
   const width = weeks * WEEK * scale;
   let html = `<div class="time-header"><div class="corner">任务类别 <span>${state.categories.length} 个类别</span></div><div class="ticks" style="width:${width}px">`;
   for (let i = 0; i < weeks; i++) {
@@ -163,7 +181,7 @@ function render() {
     state.tasks
       .filter((t) => t.categoryId === c.id)
       .forEach((t) => {
-        html += `<div class="task" data-task="${esc(t.id)}" style="left:${(t.start - origin) * scale}px;top:${12 + t.row * 64}px;width:${Math.max(3, (t.end - t.start) * scale)}px" title="${esc(t.title)}\n${stamp(t.start)} → ${stamp(t.end)}"><span class="handle left" data-resize="start"></span><strong>${esc(t.title)}</strong><small>${date(t.start).slice(5)} — ${date(t.end).slice(5)}</small><span class="handle right" data-resize="end"></span></div>`;
+        html += `<div class="task" data-task="${esc(t.id)}" style="left:${(t.start - origin) * scale}px;top:${12 + t.row * 64}px;width:${Math.max(3, (t.end - t.start) * scale)}px" title="${esc(t.title)}\n${stamp(t.start)} → ${stamp(t.end)}"><span class="handle left" data-resize="start"></span><strong>${esc(t.title)}</strong>${state.settings.showTaskDates ? `<small>${date(t.start).slice(5)} — ${date(t.end).slice(5)}</small>` : ""}<span class="handle right" data-resize="end"></span></div>`;
       });
     html += `<div class="today-line" style="left:${(today - origin) * scale}px"></div></div></section>`;
   });
@@ -739,7 +757,7 @@ $("#exportMenu").onclick = async (e) => {
         new Blob([JSON.stringify({ ...state, version: 2 }, null, 2)], {
           type: "application/json",
         }),
-        `gantt-project-${date(today)}.json`,
+        `${safeName(state.name)}-${date(today)}.json`,
       );
     else await exportImage(state, format);
     notify("导出完成");
@@ -758,18 +776,175 @@ $("#file").onchange = async (e) => {
   try {
     if (file.size > 5e6) throw Error("文件不能超过 5 MB");
     const next = validate(JSON.parse(await file.text()));
-    if (confirm("导入会替换当前项目，建议先导出备份。继续？")) {
-      state = next;
-      ensureRange();
-      goToday();
-      save();
-    }
+    createProject(
+      typeof next.name === "string" && next.name.trim()
+        ? next.name
+        : file.name.replace(/\.json$/i, ""),
+      next,
+    );
   } catch (error) {
     alert("导入失败：" + error.message);
   }
   e.target.value = "";
 };
+function safeName(name) {
+  return (
+    name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").slice(0, 100) || "gantt-project"
+  );
+}
+function applyDisplaySettings() {
+  state.settings ??= { showTaskDates: true, fontSize: 14 };
+  $("#showTaskDates").checked = state.settings.showTaskDates;
+  $("#fontSize").value = String(state.settings.fontSize);
+  document.documentElement.style.setProperty(
+    "--text-scale",
+    state.settings.fontSize / 14,
+  );
+  document.body.classList.toggle(
+    "hide-task-dates",
+    !state.settings.showTaskDates,
+  );
+}
+$("#showTaskDates").onchange = (e) => {
+  state.settings.showTaskDates = e.target.checked;
+  render();
+  save();
+};
+$("#fontSize").onchange = (e) => {
+  state.settings.fontSize = Number(e.target.value);
+  render();
+  save();
+};
+function renderProjectList() {
+  if (!library) return;
+  $("#projectList").innerHTML = library.projects
+    .slice()
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map(
+      (p) =>
+        `<button class="project-entry ${p.id === library.activeId ? "selected" : ""}" data-open-project="${esc(p.id)}"><strong>${esc(p.name)}</strong><small>${p.data.tasks.length} 个任务 · ${new Date(p.updatedAt).toLocaleString("zh-CN")}</small>${p.id === library.activeId ? "<span>当前项目</span>" : ""}</button>`,
+    )
+    .join("");
+}
+function closeProjects() {
+  $("#projectPanel").hidden = true;
+  $("#projectBackdrop").hidden = true;
+  $("#projectsButton").setAttribute("aria-expanded", "false");
+}
+$("#projectsButton").onclick = () => {
+  const open = $("#projectPanel").hidden;
+  $("#projectPanel").hidden = !open;
+  $("#projectBackdrop").hidden = !open;
+  $("#projectsButton").setAttribute("aria-expanded", String(open));
+  renderProjectList();
+};
+$("#closeProjects").onclick = closeProjects;
+$("#projectBackdrop").onclick = closeProjects;
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeProjects();
+});
+function activateProject() {
+  state = projectState(library);
+  state.settings ??= { showTaskDates: true, fontSize: 14 };
+  scale = 112 / WEEK;
+  origin = base - 12 * WEEK;
+  ensureRange();
+  goToday();
+  $("#viewport").scrollTop = 0;
+  renderProjectList();
+  closeProjects();
+}
+$("#projectList").onclick = (e) => {
+  const b = e.target.closest("[data-open-project]");
+  if (!b || b.dataset.openProject === library.activeId) return;
+  if (!save()) {
+    notify("当前项目保存失败，请先导出备份");
+    return;
+  }
+  const next = { ...library, activeId: b.dataset.openProject };
+  try {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(next));
+    library = next;
+    activateProject();
+  } catch {
+    notify("切换失败：本地存储不可用");
+  }
+};
+function createProject(name, data) {
+  if (!save()) {
+    notify("当前项目保存失败，请先导出备份");
+    return;
+  }
+  const id = uid(),
+    project = {
+      id,
+      name: name || `未命名项目 ${library.projects.length + 1}`,
+      updatedAt: Date.now(),
+      data: data || {
+        categories: [{ id: uid(), name: "任务类别", description: "", rows: 1 }],
+        tasks: [],
+        milestones: [],
+        dependencies: [],
+        settings: { showTaskDates: true, fontSize: 14 },
+      },
+    };
+  const next = {
+    ...library,
+    activeId: id,
+    projects: [...library.projects, project],
+  };
+  try {
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(next));
+    library = next;
+    activateProject();
+    save();
+  } catch {
+    notify("新建失败：本地存储不可用");
+  }
+}
+$("#newProject").onclick = () => createProject();
+$("#panelNewProject").onclick = () => createProject();
+function renameProject() {
+  const input = $("#projectNameInput");
+  input.value = state.name;
+  $("#projectTitle").hidden = true;
+  input.hidden = false;
+  input.focus();
+  input.select();
+}
+$("#projectTitle").ondblclick = renameProject;
+$("#projectTitle").onkeydown = (e) => {
+  if (e.key === "Enter" || e.key === "F2") {
+    e.preventDefault();
+    renameProject();
+  }
+};
+function finishRename(cancel = false) {
+  const input = $("#projectNameInput");
+  if (input.hidden) return;
+  const name = input.value.trim();
+  if (!cancel && name) {
+    state.name = name;
+    save();
+  }
+  input.hidden = true;
+  $("#projectTitle").hidden = false;
+  $("#projectTitle").textContent = state.name;
+}
+$("#projectNameInput").onblur = () => finishRename();
+$("#projectNameInput").onkeydown = (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    finishRename();
+  } else if (e.key === "Escape") {
+    e.stopPropagation();
+    finishRename(true);
+  }
+};
 render();
 ensureRange();
 goToday();
-if (saveError) $("#saved").textContent = "历史数据无法读取，请导入备份";
+if (saveError)
+  $("#saved").textContent =
+    "项目库无法读取，原始数据已保留，请导出当前内容备份";
+else save();

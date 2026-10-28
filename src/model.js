@@ -98,6 +98,20 @@ export function validate(data) {
   )
     throw Error("时间范围须位于今天前后合计 30 年内");
   const result = structuredClone(data);
+  result.settings ??= { showTaskDates: true, fontSize: 14 };
+  if (
+    !result.settings ||
+    typeof result.settings.showTaskDates !== "boolean" ||
+    ![12, 14, 16, 18].includes(result.settings.fontSize)
+  )
+    throw Error("显示设置无效");
+  if (
+    result.name !== undefined &&
+    (typeof result.name !== "string" ||
+      !result.name.trim() ||
+      result.name.length > 100)
+  )
+    throw Error("项目名称无效");
   result.dependencies ??= [];
   result.milestones ??= [];
   if (

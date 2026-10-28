@@ -35,7 +35,7 @@ test("创建类别、任务编辑、持久化及导入导出", async ({ page }) 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "↧ 导出项目 ▾" }).click();
   await page.getByRole("menuitem", { name: /JSON/ }).click();
-  expect((await download).suggestedFilename()).toMatch(/gantt-project/);
+  expect((await download).suggestedFilename()).toMatch(/项目时间线/);
   page.on("dialog", (d) => d.accept());
   await page.locator("#file").setInputFiles({
     name: "project.json",

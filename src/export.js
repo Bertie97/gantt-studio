@@ -50,8 +50,9 @@ export function projectSVG(state) {
   }
   const height = Math.max(420, y + 94),
     x = (t) => left + ((t - origin) / WEEK) * weekWidth;
+  const fontScale = (state.settings?.fontSize ?? 14) / 14;
   const text = (tx, ty, s, size = 13, fill = "#626d83", extra = "") =>
-    `<text x="${tx}" y="${ty}" font-size="${size}" fill="${fill}" ${extra}>${escape(s)}</text>`;
+    `<text x="${tx}" y="${ty}" font-size="${size * fontScale}" fill="${fill}" ${extra}>${escape(s)}</text>`;
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(width)}" height="${height}" viewBox="0 0 ${Math.ceil(width)} ${height}"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#8b81bf"/></marker></defs><rect width="100%" height="100%" fill="#f5f7fb"/><g font-family="Arial, Noto Sans SC, Microsoft YaHei, sans-serif"><rect x="20" y="20" width="${width - 40}" height="${height - 40}" rx="18" fill="white"/>`,
     text(
@@ -62,7 +63,14 @@ export function projectSVG(state) {
       "#8f86b4",
       'letter-spacing="2"',
     ),
-    text(48, 105, "项目时间线", 30, "#293246", 'font-weight="700"'),
+    text(
+      48,
+      105,
+      short(state.name || "项目时间线", 32),
+      30,
+      "#293246",
+      'font-weight="700"',
+    ),
     text(
       48,
       137,
@@ -139,13 +147,15 @@ export function projectSVG(state) {
         color,
         'font-weight="600"',
       ),
-      text(
-        p.x + 12,
-        p.y + 39,
-        `${date(t.start).slice(5)} — ${date(t.end).slice(5)}`,
-        10,
-        color,
-      ),
+      state.settings?.showTaskDates === false
+        ? ""
+        : text(
+            p.x + 12,
+            p.y + 39,
+            `${date(t.start).slice(5)} — ${date(t.end).slice(5)}`,
+            10,
+            color,
+          ),
       "</g>",
     );
   });
@@ -167,7 +177,10 @@ export function download(blob, name) {
 export async function exportImage(state, format) {
   const { svg, width, height } = projectSVG(state),
     blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const name = `gantt-timeline-${date(Date.now())}`;
+  const safeName = (state.name || "gantt-timeline")
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+    .slice(0, 100);
+  const name = `${safeName}-${date(Date.now())}`;
   if (format === "svg") {
     download(blob, name + ".svg");
     return;
@@ -193,11 +206,15 @@ export async function exportImage(state, format) {
     if (!ctx) throw Error("无法创建图片画布");
     ctx.scale(ratio, ratio);
     ctx.drawImage(img, 0, 0, width, height);
-    const png = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/png"),
+    const output = await new Promise((resolve) =>
+      canvas.toBlob(
+        resolve,
+        format === "jpg" ? "image/jpeg" : "image/png",
+        0.95,
+      ),
     );
-    if (!png) throw Error("PNG 生成失败，请改用 SVG");
-    download(png, name + ".png");
+    if (!output) throw Error("图片生成失败，请改用 SVG");
+    download(output, name + (format === "jpg" ? ".jpg" : ".png"));
   } finally {
     URL.revokeObjectURL(url);
   }

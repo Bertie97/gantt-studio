@@ -27,6 +27,7 @@ function sample() {
     })),
     dependencies: [],
     milestones: [],
+    settings:{showTaskDates:true,fontSize:14},
   };
 }
 test("连接后推迟不满足约束的后项，并拒绝循环、自连接、重复连接", () => {

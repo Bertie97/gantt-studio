@@ -21,3 +21,10 @@ Windows / macOS 的原生安装包构建尚未在本机执行；由 `.github/wor
 - 打包后的桌面程序：关键点拖动正常；Electron 原生 `will-download` 事件验证 PNG 保存完成（261803 字节），浏览器测试之外的桌面下载流程已确认。
 - `npm install --package-lock-only` 的依赖审计：0 个已知漏洞。
 - UI 截图见 `docs/screenshot.png`、`docs/export-menu.png`；图片导出样例见 `docs/export-example.png`。
+
+## 1.2.0 增量验证
+
+- `npm test`：12 项通过，覆盖项目库旧版迁移、保存失败保护、名称与显示设置持久化。
+- `npm run test:ui`：11 项通过，覆盖双击改名、新建/切换项目、重启恢复、独立显示设置，以及 PNG/JPG/SVG 与设置同步。
+- JPG 通过 JPEG 文件头、浏览器图片解码和桌面 Chromium 下载流程验证。
+- `npm run dist -- --linux --publish never`：1.2.0 AppImage / deb 成功生成。
