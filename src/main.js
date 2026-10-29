@@ -146,7 +146,7 @@ function save(recordHistory = true) {
   return true;
 }
 $("#app").innerHTML =
-  `<aside class="rail"><div class="brand">g<span>·</span></div><button class="rail-item active" id="projectsButton" title="项目列表" aria-label="项目列表" aria-expanded="false">▤</button><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1><span id="projectTitle" tabindex="0" title="双击修改项目名称"></span><input id="projectNameInput" aria-label="项目名称" maxlength="100" hidden><span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="newProject">＋ 新建项目</button><button id="import">↥ 导入</button><div class="export-control"><button id="export" aria-haspopup="menu" aria-expanded="false">↧ 导出项目 ▾</button><div id="exportMenu" class="export-menu" role="menu" hidden><button role="menuitem" data-export="json">JSON <small>可编辑的项目备份</small></button><button role="menuitem" data-export="png">PNG <small>高清图片</small></button><button role="menuitem" data-export="jpg">JPG <small>高清照片格式</small></button><button role="menuitem" data-export="svg">SVG <small>可缩放矢量图</small></button></div></div><button class="primary" id="addCategory">＋ 新建类别</button></div></section><section class="stats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="display-settings"><label><input type="checkbox" id="showTaskDates" checked> 显示任务时间区间</label><label>文字大小 <select id="fontSize"><option value="12">小</option><option value="14" selected>标准</option><option value="16">大</option><option value="18">特大</option></select></label><span>同时应用于 PNG / JPG / SVG 导出</span></div><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="undo" title="撤销 · Ctrl / ⌘ Z" aria-label="撤销" disabled>↶</button><button id="redo" title="重做 · Ctrl / ⌘ Shift Z" aria-label="重做" disabled>↷</button><button id="addMilestone">◇ 关键点</button><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>Shift 拖动任务建立依赖 · 双击编辑</span></footer></main><div id="projectBackdrop" hidden></div><aside id="projectPanel" hidden aria-label="本地项目"><div class="project-panel-header"><h2>我的项目</h2><button id="closeProjects" aria-label="关闭项目列表">×</button></div><p>保存在此设备 · 自动保存</p><button id="panelNewProject" class="primary">＋ 新建项目</button><div id="projectList"></div></aside><dialog id="editor"></dialog><div id="notice" role="status"></div><input type="file" id="file" accept="application/json,.json" hidden>`;
+  `<aside class="rail"><div class="brand">g<span>·</span></div><button class="rail-item active" id="projectsButton" title="项目列表" aria-label="项目列表" aria-expanded="false">▤</button><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1><span id="projectTitle" tabindex="0" title="双击修改项目名称"></span><input id="projectNameInput" aria-label="项目名称" maxlength="100" hidden><span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="newProject">＋ 新建项目</button><button id="import">↥ 导入</button><div class="export-control"><button id="export" aria-haspopup="menu" aria-expanded="false">↧ 导出项目 ▾</button><div id="exportMenu" class="export-menu" role="menu" hidden><button role="menuitem" data-export="json">JSON <small>可编辑的项目备份</small></button><button role="menuitem" data-export="png">PNG <small>高清图片</small></button><button role="menuitem" data-export="jpg">JPG <small>高清照片格式</small></button><button role="menuitem" data-export="svg">SVG <small>可缩放矢量图</small></button></div></div><button class="primary" id="addCategory">＋ 新建类别</button></div></section><button id="toggleStats" class="stats-toggle" aria-expanded="true" aria-controls="projectStats">▾ 项目概览</button><section class="stats" id="projectStats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="display-settings"><label><input type="checkbox" id="compactMode"> 紧凑模式</label><label><input type="checkbox" id="showTaskDates" checked> 显示任务时间区间</label><label>文字大小 <select id="fontSize"><option value="12">小</option><option value="14" selected>标准</option><option value="16">大</option><option value="18">特大</option></select></label><span>同时应用于 PNG / JPG / SVG 导出</span></div><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="undo" title="撤销 · Ctrl / ⌘ Z" aria-label="撤销" disabled>↶</button><button id="redo" title="重做 · Ctrl / ⌘ Shift Z" aria-label="重做" disabled>↷</button><button id="addMilestone">◇ 关键点</button><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>Shift 拖动任务建立依赖 · 双击编辑</span></footer></main><div id="projectBackdrop" hidden></div><aside id="projectPanel" hidden aria-label="本地项目"><div class="project-panel-header"><h2>我的项目</h2><button id="closeProjects" aria-label="关闭项目列表">×</button></div><p>保存在此设备 · 自动保存</p><button id="panelNewProject" class="primary">＋ 新建项目</button><div id="projectList"></div></aside><dialog id="editor"></dialog><div id="notice" role="status"></div><input type="file" id="file" accept="application/json,.json" hidden>`;
 function renderStats() {
   $("#taskCount").textContent = state.tasks.length;
   $("#categoryCount").textContent = state.categories.length;
@@ -158,6 +158,8 @@ function renderStats() {
       ) + " 天"
     : "—";
 }
+function rowHeight(){return state.settings?.compact?32:64;}
+function rowPadding(){return state.settings?.compact?6:12;}
 function render() {
   applyDisplaySettings();
   $("#projectTitle").textContent = state.name;
@@ -174,18 +176,18 @@ function render() {
   html += "</div></div>";
   state.categories.forEach((c, index) => {
     const color = colors[index % colors.length];
-    html += `<section class="category" data-category="${esc(c.id)}" style="height:${c.rows * 64 + 24}px;--accent:${color}"><div class="category-label"><div><span class="category-dot"></span><strong>${esc(c.name)}</strong><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别">···</button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px 64px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
+    html += `<section class="category" data-category="${esc(c.id)}" style="height:${c.rows * rowHeight() + rowPadding()*2}px;--accent:${color}"><div class="category-label"><div><span class="category-dot"></span><strong>${esc(c.name)}</strong><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别">···</button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px ${rowHeight()}px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
     for (let row = 0; row < c.rows; row++) {
       if (
         c.rows > 1 &&
         !state.tasks.some((t) => t.categoryId === c.id && t.row === row)
       )
-        html += `<div class="row-action" style="top:${12 + row * 64}px"><button data-delete-row="${row}" data-row-category="${esc(c.id)}" title="删除此空行" aria-label="${esc(c.name)}：删除第 ${row + 1} 空行">− 删除空行 <small>第 ${row + 1} 行</small></button></div>`;
+        html += `<div class="row-action" style="top:${rowPadding() + row * rowHeight()}px"><button data-delete-row="${row}" data-row-category="${esc(c.id)}" title="删除此空行" aria-label="${esc(c.name)}：删除第 ${row + 1} 空行">− 删除空行 <small>第 ${row + 1} 行</small></button></div>`;
     }
     state.tasks
       .filter((t) => t.categoryId === c.id)
       .forEach((t) => {
-        html += `<div class="task" data-task="${esc(t.id)}" style="left:${(t.start - origin) * scale}px;top:${12 + t.row * 64}px;width:${Math.max(3, (t.end - t.start) * scale)}px" title="${esc(t.title)}\n${stamp(t.start)} → ${stamp(t.end)}"><span class="handle left" data-resize="start"></span><strong>${esc(t.title)}</strong>${state.settings.showTaskDates ? `<small>${date(t.start).slice(5)} — ${date(t.end).slice(5)}</small>` : ""}<span class="handle right" data-resize="end"></span></div>`;
+        html += `<div class="task" data-task="${esc(t.id)}" style="left:${(t.start - origin) * scale}px;top:${rowPadding() + t.row * rowHeight()}px;width:${Math.max(3, (t.end - t.start) * scale)}px" title="${esc(t.title)}\n${stamp(t.start)} → ${stamp(t.end)}"><span class="handle left" data-resize="start"></span><strong>${esc(t.title)}</strong>${state.settings.showTaskDates ? `<small>${date(t.start).slice(5)} — ${date(t.end).slice(5)}</small>` : ""}<span class="handle right" data-resize="end"></span></div>`;
       });
     html += `<div class="today-line" style="left:${(today - origin) * scale}px"></div></div></section>`;
   });
@@ -499,7 +501,7 @@ $("#canvas").addEventListener("dblclick", (e) => {
           Math.max(
             0,
             Math.floor(
-              (e.clientY - track.getBoundingClientRect().top - 12) / 64,
+              (e.clientY - track.getBoundingClientRect().top - rowPadding()) / rowHeight(),
             ),
           ),
         ),
@@ -650,8 +652,8 @@ document.addEventListener("pointermove", (e) => {
       y = e.clientY - rect.top;
     drag.target = {
       category: c.id,
-      row: Math.max(0, Math.min(c.rows - 1, Math.floor((y - 12) / 64))),
-      edge: y < 13 ? "top" : y > rect.height - 13 ? "bottom" : null,
+      row: Math.max(0, Math.min(c.rows - 1, Math.floor((y - rowPadding()) / rowHeight()))),
+      edge: y < rowPadding()+1 ? "top" : y > rect.height - rowPadding()-1 ? "bottom" : null,
     };
     if (drag.target.edge)
       track.querySelector(".edge." + drag.target.edge).classList.add("visible");
@@ -662,7 +664,7 @@ document.addEventListener("pointermove", (e) => {
   node?.classList.add("dragging");
   if (node && track && drag.target) {
     track.append(node);
-    node.style.top = `${12 + drag.target.row * 64}px`;
+    node.style.top = `${rowPadding() + drag.target.row * rowHeight()}px`;
   }
   drawOverlay();
   if (e.clientX > v.getBoundingClientRect().right - 40) v.scrollLeft += 16;
@@ -807,6 +809,12 @@ function safeName(name) {
 }
 function applyDisplaySettings() {
   state.settings ??= { showTaskDates: true, fontSize: 14 };
+  $('#compactMode').checked=!!state.settings.compact;
+  document.body.classList.toggle('compact-mode',!!state.settings.compact);
+  $('#projectStats').hidden=!!state.settings.statsCollapsed;
+  $('#toggleStats').setAttribute('aria-expanded',String(!state.settings.statsCollapsed));
+  $('#toggleStats').textContent=state.settings.statsCollapsed?'▸ 项目概览':'▾ 项目概览';
+  document.body.classList.toggle('stats-collapsed',!!state.settings.statsCollapsed);
   $("#showTaskDates").checked = state.settings.showTaskDates;
   $("#fontSize").value = String(state.settings.fontSize);
   document.documentElement.style.setProperty(
@@ -818,6 +826,8 @@ function applyDisplaySettings() {
     !state.settings.showTaskDates,
   );
 }
+$('#toggleStats').onclick=()=>{state.settings.statsCollapsed=!state.settings.statsCollapsed;render();save();};
+$('#compactMode').onchange=e=>{state.settings.compact=e.target.checked;if(e.target.checked)state.settings.showTaskDates=false;render();save();};
 $("#showTaskDates").onchange = (e) => {
   state.settings.showTaskDates = e.target.checked;
   render();

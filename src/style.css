@@ -966,3 +966,18 @@ button:disabled {
 .hide-task-dates .task strong { width:100%; font-size:calc(14px * var(--text-scale,1)); font-weight:600; }
 .dependency-line { stroke-width:1.6; stroke-dasharray:5 5; stroke-linecap:round; }
 .dependency-line.preview { stroke-width:1.6; }
+.stats-toggle { display:block; padding:5px 0; margin:0 0 8px; background:transparent; border:0; font-size:12px; color:#8c829e; }
+.stats-collapsed .viewport { max-height:calc(100vh - 330px); }
+.edit-category { margin-left:2px; flex-shrink:0; }
+.compact-mode .category { min-height:44px; }
+.compact-mode .category>.category-label { padding:5px 18px; overflow:hidden; }
+.compact-mode .category-label p { margin:3px 0; font-size:10px; }
+.compact-mode .category>.category-label>small { display:none; }
+.compact-mode .task { height:24px; padding:2px 10px; border-radius:5px; }
+.compact-mode .track { background-position:0 0,0 6px; }
+.compact-mode .edge { height:7px; font-size:7px; line-height:7px; }
+.compact-mode .row-action { height:24px; }
+.compact-mode .row-action button { margin:1px 12px; padding:3px 7px; }
+.compact-mode:not(.hide-task-dates) .task { padding:0 10px; }
+.compact-mode:not(.hide-task-dates) .task strong { font-size:calc(10px * var(--text-scale,1)); line-height:12px; }
+.compact-mode:not(.hide-task-dates) .task small { margin-top:0; font-size:calc(8px * var(--text-scale,1)); line-height:10px; }

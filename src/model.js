@@ -102,7 +102,9 @@ export function validate(data) {
   if (
     !result.settings ||
     typeof result.settings.showTaskDates !== "boolean" ||
-    ![12, 14, 16, 18].includes(result.settings.fontSize)
+    ![12, 14, 16, 18].includes(result.settings.fontSize) ||
+    (result.settings.compact!==undefined && typeof result.settings.compact!=="boolean") ||
+    (result.settings.statsCollapsed!==undefined && typeof result.settings.statsCollapsed!=="boolean")
   )
     throw Error("显示设置无效");
   if (
