@@ -15,7 +15,9 @@ const date = (t) => new Date(t).toISOString().slice(0, 10);
 const palette = ["#6961d9", "#299c91", "#cf9250", "#568acb", "#bf6f9c"];
 export function curve(x1, y1, x2, y2) {
   const bend = Math.max(32, Math.min(120, Math.abs(x2 - x1) * 0.5));
-  return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+  // The final tangent tilts toward the target instead of flattening against its edge.
+  const rise = Math.sign(y2-y1) * Math.min(bend * 0.55, Math.abs(y2-y1) * 0.4);
+  return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2-rise}, ${x2} ${y2}`;
 }
 function short(s, limit) {
   return [...String(s ?? "")].length > limit
@@ -34,7 +36,7 @@ export function projectSVG(state) {
   const weekWidth = Math.max(14, Math.min(150, 1800 / count));
   const left = 260,
     width = left + count * weekWidth + 40,
-    top = 270;
+    top = (state.milestones?.length ?? 0) > 1 ? 268 : (state.milestones?.length ?? 0) === 1 ? 244 : 220;
   const positions = new Map(),
     sections = [];
   let y = top;
@@ -77,7 +79,7 @@ export function projectSVG(state) {
       `${date(Math.min(...times))} — ${date(Math.max(...times))}   ·   ${state.tasks.length} 个任务   ·   ${state.milestones?.length ?? 0} 个关键点`,
       13,
     ),
-    `<rect x="40" y="160" width="${width - 80}" height="110" rx="8" fill="#f4f3fc"/>`,
+    `<rect x="40" y="160" width="${width - 80}" height="${top-160}" rx="8" fill="#f4f3fc"/>`,
     text(56, 202, "任务类别", 13, "#605c82"),
   ];
   const stride = Math.max(1, Math.ceil(90 / weekWidth));
@@ -111,7 +113,7 @@ export function projectSVG(state) {
       const px = x(m.time),
         ly = 231 + (i % 2) * 24;
       svg.push(
-        `<path d="M${px} 270 V${y}" stroke="#cf9250" stroke-dasharray="3 5" opacity=".65"/><path d="M${px} ${ly - 5} l5 5 -5 5 -5 -5Z" fill="#cf9250"/>`,
+        `<path d="M${px} ${top} V${y}" stroke="#cf9250" stroke-dasharray="3 5" opacity=".65"/><path d="M${px} ${ly - 5} l5 5 -5 5 -5 -5Z" fill="#cf9250"/>`,
         text(
           Math.min(width - 180, Math.max(left, px + 9)),
           ly + 3,
