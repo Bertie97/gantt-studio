@@ -981,3 +981,18 @@ button:disabled {
 .compact-mode:not(.hide-task-dates) .task { padding:0 10px; }
 .compact-mode:not(.hide-task-dates) .task strong { font-size:calc(10px * var(--text-scale,1)); line-height:12px; }
 .compact-mode:not(.hide-task-dates) .task small { margin-top:0; font-size:calc(8px * var(--text-scale,1)); line-height:10px; }
+/* Keep the category action close to its label without shrinking its hit area. */
+.category-label > div { column-gap:4px; }
+.edit-category { margin-left:0; padding:0; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; line-height:1; letter-spacing:-1.5px; border-radius:5px; }
+.compact-mode .intro { padding:14px 0; gap:12px; flex-wrap:nowrap; }
+.compact-mode .intro .eyebrow,
+.compact-mode .intro p,
+.compact-mode .intro .badge,
+.compact-mode .intro #newProject,
+.compact-mode .intro #addCategory { display:none; }
+.compact-mode .intro h1 { margin:0; font-size:calc(24px * var(--text-scale,1)); }
+.compact-mode .intro > div:first-child { flex:1; overflow:hidden; }
+.compact-mode #projectTitle { max-width:100%; }
+.compact-mode #projectNameInput { max-width:100%; }
+.compact-mode .intro .actions { flex-wrap:nowrap; gap:8px; }
+.compact-mode .stats > p { display:none; }
