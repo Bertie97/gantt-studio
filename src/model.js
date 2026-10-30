@@ -114,6 +114,7 @@ export function validate(data) {
       result.name.length > 100)
   )
     throw Error("项目名称无效");
+  for(const [key,min,max] of [['columnWidth',140,480],['headerHeight',48,180]])if(result.settings[key]!==undefined&&(!Number.isFinite(result.settings[key])||result.settings[key]<min||result.settings[key]>max))throw Error('布局尺寸无效');
   result.dependencies ??= [];
   result.milestones ??= [];
   if (

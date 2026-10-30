@@ -34,9 +34,11 @@ export function projectSVG(state) {
   const end = monday(Math.max(...times)) + 2 * WEEK;
   const count = Math.max(6, Math.ceil((end - origin) / WEEK));
   const weekWidth = Math.max(14, Math.min(150, 1800 / count));
-  const left = 260,
+  const compact=!!state.settings?.compact, rh=compact?32:64, pad=compact?6:12, th=compact?24:48;
+  const hh=state.settings?.headerHeight??60;
+  const left = 40+(state.settings?.columnWidth??224),
     width = left + count * weekWidth + 40,
-    top = (state.milestones?.length ?? 0) > 1 ? 268 : (state.milestones?.length ?? 0) === 1 ? 244 : 220;
+    top = 160+hh+((state.milestones?.length??0)>1?48:(state.milestones?.length??0)===1?24:0);
   const positions = new Map(),
     sections = [];
   let y = top;
@@ -45,10 +47,10 @@ export function projectSVG(state) {
     for (const t of state.tasks.filter((t) => t.categoryId === c.id))
       positions.set(t.id, {
         x: left + ((t.start - origin) / WEEK) * weekWidth,
-        y: y + 18 + t.row * 68,
+        y: y + pad + t.row * rh,
         w: ((t.end - t.start) / WEEK) * weekWidth,
       });
-    y += c.rows * 68 + 36;
+    y += c.rows * rh + pad*2;
   }
   const height = Math.max(420, y + 94),
     x = (t) => left + ((t - origin) / WEEK) * weekWidth;
@@ -80,7 +82,7 @@ export function projectSVG(state) {
       13,
     ),
     `<rect x="40" y="160" width="${width - 80}" height="${top-160}" rx="8" fill="#f4f3fc"/>`,
-    text(56, 202, "任务类别", 13, "#605c82"),
+    text(56, 160+hh/2+5, "任务类别", 13, "#605c82"),
   ];
   const stride = Math.max(1, Math.ceil(90 / weekWidth));
   for (let i = 0; i <= count; i++) {
@@ -88,8 +90,8 @@ export function projectSVG(state) {
     svg.push(`<path d="M${px} 160 V${y}" stroke="#eceef5"/>`);
     if (i < count && i % stride === 0)
       svg.push(
-        text(px + 8, 183, date(origin + i * WEEK).slice(0, 7), 10, "#9b9fb1"),
-        text(px + 8, 205, date(origin + i * WEEK).slice(5), 12, "#69628b"),
+        text(px + 8, 160+hh/2-8, date(origin + i * WEEK).slice(0, 7), 10, "#9b9fb1"),
+        text(px + 8, 160+hh/2+12, date(origin + i * WEEK).slice(5), 12, "#69628b"),
       );
   }
   sections.forEach(({ c, y: cy }, index) => {
@@ -97,13 +99,13 @@ export function projectSVG(state) {
       `<path d="M40 ${cy} H${width - 40}" stroke="#e7eaf2"/>`,
       text(
         56,
-        cy + 36,
-        short(c.name, 15),
+        cy + (compact?17:30),
+        short(c.name, Math.floor((left-72)/18)),
         14,
         palette[index % palette.length],
         'font-weight="600"',
       ),
-      text(56, cy + 59, short(c.description, 18), 11, "#939bad"),
+      text(56, cy + (compact?34:53), short(c.description, Math.floor((left-72)/14)), compact?9:11, "#939bad"),
     );
   });
   (state.milestones ?? [])
@@ -111,7 +113,7 @@ export function projectSVG(state) {
     .sort((a, b) => a.time - b.time)
     .forEach((m, i) => {
       const px = x(m.time),
-        ly = 231 + (i % 2) * 24;
+        ly = 160+hh+11 + (i % 2) * 24;
       svg.push(
         `<path d="M${px} ${top} V${y}" stroke="#cf9250" stroke-dasharray="3 5" opacity=".65"/><path d="M${px} ${ly - 5} l5 5 -5 5 -5 -5Z" fill="#cf9250"/>`,
         text(
@@ -136,7 +138,7 @@ export function projectSVG(state) {
       ) % palette.length;
     if (a && b)
       svg.push(
-        `<path d="${curve(a.x + a.w + 1, a.y + 25, b.x - 3, b.y + 25)}" fill="none" stroke="${palette[index]}" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrow${index})"/>`,
+        `<path d="${curve(a.x + a.w + 1, a.y + th/2, b.x - 3, b.y + th/2)}" fill="none" stroke="${palette[index]}" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrow${index})"/>`,
       );
   }
   state.tasks.forEach((t, index) => {
@@ -149,15 +151,15 @@ export function projectSVG(state) {
       w = Math.max(3, p.w),
       titleOnly = state.settings?.showTaskDates === false;
     svg.push(
-      `<defs><clipPath id="task-${index}"><rect x="${p.x + 4}" y="${p.y}" width="${Math.max(0, w - 8)}" height="50"/></clipPath></defs><rect x="${p.x}" y="${p.y}" width="${w}" height="50" rx="8" fill="${color}" fill-opacity=".13" stroke="${color}" stroke-opacity=".35"/><g clip-path="url(#task-${index})">`,
+      `<defs><clipPath id="task-${index}"><rect x="${p.x + 4}" y="${p.y}" width="${Math.max(0, w - 8)}" height="${th}"/></clipPath></defs><rect x="${p.x}" y="${p.y}" width="${w}" height="${th}" rx="8" fill="${color}" fill-opacity=".13" stroke="${color}" stroke-opacity=".35"/><g clip-path="url(#task-${index})">`,
       text(
         titleOnly ? p.x + w / 2 : p.x + 12,
-        titleOnly ? p.y + 25 : p.y + 21,
+        titleOnly ? p.y + th/2 : p.y + (compact?10:21),
         short(
           t.title,
           Math.floor((w - 20) / ((titleOnly ? 15 : 13) * fontScale)),
         ),
-        titleOnly ? 15 : 12,
+        titleOnly ? 15 : (compact?9:12),
         color,
         titleOnly
           ? 'font-weight="600" text-anchor="middle" dominant-baseline="central"'
@@ -167,9 +169,9 @@ export function projectSVG(state) {
         ? ""
         : text(
             p.x + 12,
-            p.y + 39,
+            p.y + (compact?21:39),
             `${date(t.start).slice(5)} — ${date(t.end).slice(5)}`,
-            10,
+            compact?8:10,
             color,
           ),
       "</g>",

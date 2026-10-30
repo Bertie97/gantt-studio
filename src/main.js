@@ -158,6 +158,8 @@ function renderStats() {
       ) + " 天"
     : "—";
 }
+function columnWidth(){return state.settings?.columnWidth??224;}
+function headerHeight(){return state.settings?.headerHeight??60;}
 function rowHeight(){return state.settings?.compact?32:64;}
 function rowPadding(){return state.settings?.compact?6:12;}
 function render() {
@@ -193,6 +195,8 @@ function render() {
   });
   html += `<div class="empty-row"><div class="category-label"><button id="inlineCategory">＋ 添加类别</button></div><div style="width:${width}px"></div></div>`;
   $("#canvas").innerHTML = html;
+  document.querySelectorAll('.corner,.category-label').forEach(el=>el.insertAdjacentHTML('beforeend','<span class="column-resizer" data-layout="columnWidth" role="separator" tabindex="0" aria-label="调整类别列宽" aria-orientation="vertical"></span>'));
+  $('.time-header').insertAdjacentHTML('beforeend','<span class="header-resizer" data-layout="headerHeight" role="separator" tabindex="0" aria-label="调整时间表头高度" aria-orientation="horizontal"></span>');
   $("#zoomLabel").textContent = Math.round(((scale * WEEK) / 112) * 100) + "%";
   renderStats();
   drawOverlay();
@@ -200,7 +204,7 @@ function render() {
 function timeAt(e) {
   const rect = $("#viewport").getBoundingClientRect();
   return (
-    origin + (e.clientX - rect.left + $("#viewport").scrollLeft - 224) / scale
+    origin + (e.clientX - rect.left + $("#viewport").scrollLeft - columnWidth()) / scale
   );
 }
 function ensureRange() {
@@ -220,7 +224,7 @@ function ensureRange() {
 function goToday() {
   $("#viewport").scrollLeft = Math.max(0, (today - origin - 2 * WEEK) * scale);
 }
-function zoom(factor, x = ($("#viewport").clientWidth - 224) / 2) {
+function zoom(factor, x = ($("#viewport").clientWidth - columnWidth()) / 2) {
   const v = $("#viewport"),
     time = origin + (v.scrollLeft + x) / scale;
   scale = Math.max(35 / WEEK, Math.min(420 / WEEK, scale * factor));
@@ -237,7 +241,7 @@ $("#viewport").addEventListener(
       e.preventDefault();
       zoom(
         e.deltaY < 0 ? 1.1 : 1 / 1.1,
-        e.clientX - $("#viewport").getBoundingClientRect().left - 224,
+        e.clientX - $("#viewport").getBoundingClientRect().left - columnWidth(),
       );
     }
   },
@@ -296,8 +300,8 @@ function drawOverlay(pointer) {
     }
   }
   for (const m of state.milestones) {
-    const x = 224 + (m.time - origin) * scale;
-    paths += `<path class="milestone-line" d="M ${x} 126 V ${height - 74}"/>`;
+    const x = columnWidth() + (m.time - origin) * scale;
+    paths += `<path class="milestone-line" d="M ${x} ${headerHeight()+48} V ${height - 74}"/>`;
   }
   if (pointer && drag?.type === "link") {
     const a = points.get(drag.task.id);
@@ -479,6 +483,7 @@ $("#canvas").addEventListener("click", (e) => {
   if (e.target.closest("#inlineCategory")) categoryEditor();
 });
 $("#canvas").addEventListener("dblclick", (e) => {
+  if(e.target.closest("[data-layout]"))return;
   if (e.target.closest(".milestone-track") && !e.target.closest("button")) {
     milestoneEditor({ id: uid(), title: "", time: snap(timeAt(e), true) });
     return;
@@ -516,6 +521,8 @@ $("#canvas").addEventListener("dblclick", (e) => {
 });
 let suppressMarkerClickUntil = 0;
 $("#viewport").addEventListener("pointerdown", (e) => {
+  const grip=e.target.closest('[data-layout]');
+  if(e.button===0&&grip){drag={type:'layout',key:grip.dataset.layout,x:e.clientX,y:e.clientY,before:structuredClone(state),original:grip.dataset.layout==='columnWidth'?columnWidth():headerHeight(),moved:false};e.preventDefault();return;}
   const marker = e.target.closest("[data-milestone]");
   if (e.button === 0 && marker) {
     const milestone = state.milestones.find(
@@ -573,6 +580,7 @@ document.addEventListener("pointermove", (e) => {
   )
     return;
   drag.moved = true;
+  if(drag.type==='layout'){const col=drag.key==='columnWidth';state.settings[drag.key]=Math.round(Math.max(col?140:48,Math.min(col?480:180,drag.original+(col?e.clientX-drag.x:e.clientY-drag.y))));render();return;}
   if (drag.type === "milestone") {
     const next = snap(
       drag.original + timeAt(e) - drag.time,
@@ -672,6 +680,7 @@ document.addEventListener("pointermove", (e) => {
 });
 function finish(cancel = false) {
   if (!drag) return;
+  if(drag.type==='layout'){if(cancel)state=drag.before;else if(drag.moved)save();drag=null;render();return;}
   if (drag.type === "milestone") {
     if (drag.moved) {
       suppressMarkerClickUntil = performance.now() + 350;
@@ -808,6 +817,8 @@ function safeName(name) {
   );
 }
 function applyDisplaySettings() {
+  document.documentElement.style.setProperty('--column-width',columnWidth()+'px');
+  document.documentElement.style.setProperty('--header-height',headerHeight()+'px');
   state.settings ??= { showTaskDates: true, fontSize: 14 };
   $('#compactMode').checked=!!state.settings.compact;
   document.body.classList.toggle('compact-mode',!!state.settings.compact);
@@ -1015,3 +1026,5 @@ if (saveError)
   $("#saved").textContent =
     "项目库无法读取，原始数据已保留，请导出当前内容备份";
 else save();
+
+$('#canvas').addEventListener('keydown',e=>{const grip=e.target.closest('[data-layout]');if(!grip)return;const col=grip.dataset.layout==='columnWidth',direction=col?{ArrowLeft:-1,ArrowRight:1}:{ArrowUp:-1,ArrowDown:1};if(!direction[e.key])return;e.preventDefault();state.settings[grip.dataset.layout]=Math.max(col?140:48,Math.min(col?480:180,(col?columnWidth():headerHeight())+direction[e.key]*4));render();save();document.querySelector(`[data-layout="${grip.dataset.layout}"]`)?.focus();});
