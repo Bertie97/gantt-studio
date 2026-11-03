@@ -4,6 +4,17 @@
 
 ![Gantt Studio 界面](docs/screenshot.png)
 
+## uv 启动
+
+```bash
+uv run --locked python app.py
+uv run --locked python app.py --check
+uv run --locked python -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+需要 Node.js >=22.12 和 npm；Python 3.13.13 仅负责启动。首次运行或 npm 锁变化时执行 `npm ci`，随后沿用 `npm run desktop`。
+可用 `--setup` 仅准备依赖。默认 npm 缓存位于 `.cache/npm/`，可通过 `npm_config_cache` 覆盖。
+
 ## 开发与运行
 
 需要 Node.js **22.12 或更高版本**（推荐 Node.js 24 LTS）。

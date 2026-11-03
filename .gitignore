@@ -4,3 +4,11 @@ release/
 test-results/
 playwright-report/
 *.log
+
+.venv/
+
+__pycache__/
+
+*.py[cod]
+
+.cache/
