@@ -55,6 +55,7 @@ async function link(page, from, to) {
 }
 test("Shift 连接、多级联动、循环保护、取消恢复、解除依赖", async ({ page }) => {
   await seed(page);
+  await page.locator("#lockDependencies").check();
   await link(page, "a", "b");
   await link(page, "b", "c");
   expect((await read(page)).dependencies).toHaveLength(2);

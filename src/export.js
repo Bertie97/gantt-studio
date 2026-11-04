@@ -31,8 +31,10 @@ export function projectSVG(state) {
   ];
   if (!times.length) times.push(Date.now());
   const origin = monday(Math.min(...times)) - WEEK;
-  const end = monday(Math.max(...times)) + 2 * WEEK;
-  const count = Math.max(6, Math.ceil((end - origin) / WEEK));
+  const latest = Math.max(...times);
+  // Round up to the enclosing week boundary, then leave exactly one spare column.
+  const end = monday(latest) + (latest === monday(latest) ? 1 : 2) * WEEK;
+  const count = Math.ceil((end - origin) / WEEK);
   const weekWidth = Math.max(14, Math.min(150, 1800 / count));
   const compact=!!state.settings?.compact, rh=compact?32:64, pad=compact?6:12, th=compact?24:48;
   const hh=state.settings?.headerHeight??60;
@@ -149,20 +151,22 @@ export function projectSVG(state) {
             palette.length
         ],
       w = Math.max(3, p.w),
-      titleOnly = state.settings?.showTaskDates === false;
+      titleOnly = state.settings?.showTaskDates === false,
+      hideOverflow = !!state.settings?.hideOverflowText;
+    // Explicit alphabetic baseline keeps titles centered in viewers that ignore dominant-baseline.
     svg.push(
-      `<defs><clipPath id="task-${index}"><rect x="${p.x + 4}" y="${p.y}" width="${Math.max(0, w - 8)}" height="${th}"/></clipPath></defs><rect x="${p.x}" y="${p.y}" width="${w}" height="${th}" rx="8" fill="${color}" fill-opacity=".13" stroke="${color}" stroke-opacity=".35"/><g clip-path="url(#task-${index})">`,
+      `<defs><clipPath id="task-${index}"><rect x="${p.x + 4}" y="${p.y}" width="${Math.max(0, w - 8)}" height="${th}"/></clipPath></defs><rect x="${p.x}" y="${p.y}" width="${w}" height="${th}" rx="8" fill="${color}" fill-opacity=".13" stroke="${color}" stroke-opacity=".35"/><g${hideOverflow ? ` clip-path="url(#task-${index})"` : ' data-task-text="true"'}>`,
       text(
-        titleOnly ? p.x + w / 2 : p.x + 12,
-        titleOnly ? p.y + th/2 : p.y + (compact?10:21),
-        short(
+        titleOnly && hideOverflow ? p.x + w / 2 : p.x + 12,
+        titleOnly ? p.y + th/2 + 15 * fontScale * 0.35 : p.y + (compact?10:21),
+        hideOverflow ? short(
           t.title,
           Math.floor((w - 20) / ((titleOnly ? 15 : 13) * fontScale)),
-        ),
+        ) : t.title,
         titleOnly ? 15 : (compact?9:12),
         color,
         titleOnly
-          ? 'font-weight="600" text-anchor="middle" dominant-baseline="central"'
+          ? `font-weight="600" text-anchor="${hideOverflow ? "middle" : "start"}"`
           : 'font-weight="600"',
       ),
       state.settings?.showTaskDates === false

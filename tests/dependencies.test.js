@@ -27,7 +27,7 @@ function sample() {
     })),
     dependencies: [],
     milestones: [],
-    settings:{showTaskDates:true,fontSize:14},
+    settings:{showTaskDates:true,fontSize:14,lockDependencies:true},
   };
 }
 test("连接后推迟不满足约束的后项，并拒绝循环、自连接、重复连接", () => {
@@ -125,6 +125,7 @@ test("完整 SVG 导出包含关键点、虚线曲线，转义文本且无外部
   assert.match(svg, /stroke-dasharray="5 5"/);
   assert.match(svg, / C /);
   assert.doesNotMatch(svg, /<foreignObject|<script|<image/);
-  assert.ok(width > 1000 && height > 400);
+  assert.equal(width, 904); // Two occupied weeks plus one spare on each side.
+  assert.ok(height > 400);
   assert.match(projectSVG({ tasks: [], categories: [] }).svg, /项目时间线/);
 });

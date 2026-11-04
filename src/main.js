@@ -15,6 +15,8 @@ import {
   validate,
   linkTasks,
   scheduleChange,
+  enforceDependencies,
+  dependencyConflicts,
   settleRows,
   pruneDependencies,
   deleteEmptyRow,
@@ -146,7 +148,7 @@ function save(recordHistory = true) {
   return true;
 }
 $("#app").innerHTML =
-  `<aside class="rail"><div class="brand">g<span>·</span></div><button class="rail-item active" id="projectsButton" title="项目列表" aria-label="项目列表" aria-expanded="false">▤</button><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1><span id="projectTitle" tabindex="0" title="双击修改项目名称"></span><input id="projectNameInput" aria-label="项目名称" maxlength="100" hidden><span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="newProject">＋ 新建项目</button><button id="import">↥ 导入</button><div class="export-control"><button id="export" aria-haspopup="menu" aria-expanded="false">↧ 导出项目 ▾</button><div id="exportMenu" class="export-menu" role="menu" hidden><button role="menuitem" data-export="json">JSON <small>可编辑的项目备份</small></button><button role="menuitem" data-export="png">PNG <small>高清图片</small></button><button role="menuitem" data-export="jpg">JPG <small>高清照片格式</small></button><button role="menuitem" data-export="svg">SVG <small>可缩放矢量图</small></button></div></div><button class="primary" id="addCategory">＋ 新建类别</button></div></section><button id="toggleStats" class="stats-toggle" aria-expanded="true" aria-controls="projectStats">▾ 项目概览</button><section class="stats" id="projectStats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="display-settings"><label><input type="checkbox" id="compactMode"> 紧凑模式</label><label><input type="checkbox" id="showTaskDates" checked> 显示任务时间区间</label><label>文字大小 <select id="fontSize"><option value="12">小</option><option value="14" selected>标准</option><option value="16">大</option><option value="18">特大</option></select></label><span>同时应用于 PNG / JPG / SVG 导出</span></div><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="undo" title="撤销 · Ctrl / ⌘ Z" aria-label="撤销" disabled>↶</button><button id="redo" title="重做 · Ctrl / ⌘ Shift Z" aria-label="重做" disabled>↷</button><button id="addMilestone">◇ 关键点</button><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>Shift 拖动任务建立依赖 · 双击编辑</span></footer></main><div id="projectBackdrop" hidden></div><aside id="projectPanel" hidden aria-label="本地项目"><div class="project-panel-header"><h2>我的项目</h2><button id="closeProjects" aria-label="关闭项目列表">×</button></div><p>保存在此设备 · 自动保存</p><button id="panelNewProject" class="primary">＋ 新建项目</button><div id="projectList"></div></aside><dialog id="editor"></dialog><div id="notice" role="status"></div><input type="file" id="file" accept="application/json,.json" hidden>`;
+  `<aside class="rail"><div class="brand">g<span>·</span></div><button class="rail-item active" id="projectsButton" title="项目列表" aria-label="项目列表" aria-expanded="false">▤</button><div class="rail-bottom">GS</div></aside><main><header><div class="crumb">工作空间 <span>/</span> 项目计划</div><div id="saved">● 本地自动保存</div></header><section class="intro"><div><div class="eyebrow">YOUR PLANS, IN PERSPECTIVE</div><h1><span id="projectTitle" tabindex="0" title="双击修改项目名称"></span><input id="projectNameInput" aria-label="项目名称" maxlength="100" hidden><span class="badge">甘特图</span></h1><p>把想法排进日程，让每一步都清晰可见。</p></div><div class="actions"><button id="newProject">＋ 新建项目</button><button id="import">↥ 导入</button><div class="export-control"><button id="export" aria-haspopup="menu" aria-expanded="false">↧ 导出项目 ▾</button><div id="exportMenu" class="export-menu" role="menu" hidden><button role="menuitem" data-export="json">JSON <small>可编辑的项目备份</small></button><button role="menuitem" data-export="png">PNG <small>高清图片</small></button><button role="menuitem" data-export="jpg">JPG <small>高清照片格式</small></button><button role="menuitem" data-export="svg">SVG <small>可缩放矢量图</small></button></div></div><button class="primary" id="addCategory">＋ 新建类别</button></div></section><button id="toggleStats" class="stats-toggle" aria-expanded="true" aria-controls="projectStats">▾ 项目概览</button><section class="stats" id="projectStats"><div><span class="stat-icon purple">▤</span><span><b id="taskCount"></b><small>计划任务</small></span></div><div><span class="stat-icon green">▦</span><span><b id="categoryCount"></b><small>任务类别</small></span></div><div><span class="stat-icon orange">◷</span><span><b id="duration"></b><small>计划跨度</small></span></div><p>好的计划，始于清晰的时间线。<span>PLAN WITH CLARITY</span></p></section><section class="board"><div class="display-settings"><label><input type="checkbox" id="compactMode"> 紧凑模式</label><label><input type="checkbox" id="showTaskDates" checked> 显示任务时间区间</label><label><input type="checkbox" id="hideOverflowText"> 隐藏越界文本</label><label><input type="checkbox" id="lockDependencies"> 锁定依赖关系</label><label>文字大小 <select id="fontSize"><option value="12">小</option><option value="14" selected>标准</option><option value="16">大</option><option value="18">特大</option></select></label><span>同时应用于 PNG / JPG / SVG 导出</span></div><div class="toolbar"><div><span class="live-dot"></span><strong>时间规划</strong><span class="muted">按周视图</span></div><div class="tools"><button id="undo" title="撤销 · Ctrl / ⌘ Z" aria-label="撤销" disabled>↶</button><button id="redo" title="重做 · Ctrl / ⌘ Shift Z" aria-label="重做" disabled>↷</button><button id="addMilestone">◇ 关键点</button><button id="today">今天</button><span class="divider"></span><button id="zoomOut" aria-label="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大">＋</button><span class="week-label">周 ▾</span></div></div><div class="viewport" id="viewport"><div id="canvas"></div></div><div class="board-footer"><span>＋ 双击空白处新建任务</span><span>拖动空白处平移 · Ctrl / ⌘ + 滚轮缩放</span></div></section><footer><span><i></i> 默认按周吸附 <kbd>Ctrl</kbd> / <kbd>⌘</kbd> 按住自由调整</span><span>Shift 拖动任务建立依赖 · 双击编辑</span></footer></main><div id="projectBackdrop" hidden></div><aside id="projectPanel" hidden aria-label="本地项目"><div class="project-panel-header"><h2>我的项目</h2><button id="closeProjects" aria-label="关闭项目列表">×</button></div><p>保存在此设备 · 自动保存</p><button id="panelNewProject" class="primary">＋ 新建项目</button><div id="projectList"></div></aside><dialog id="editor"></dialog><div id="notice" role="status"></div><input type="file" id="file" accept="application/json,.json" hidden>`;
 function renderStats() {
   $("#taskCount").textContent = state.tasks.length;
   $("#categoryCount").textContent = state.categories.length;
@@ -178,7 +180,7 @@ function render() {
   html += "</div></div>";
   state.categories.forEach((c, index) => {
     const color = colors[index % colors.length];
-    html += `<section class="category" data-category="${esc(c.id)}" style="height:${c.rows * rowHeight() + rowPadding()*2}px;--accent:${color}"><div class="category-label"><div><span class="category-dot"></span><strong>${esc(c.name)}</strong><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle cx="4" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/></svg></button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px ${rowHeight()}px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
+    html += `<section class="category" data-category="${esc(c.id)}" style="height:${c.rows * rowHeight() + rowPadding()*2}px;--accent:${color}"><div class="category-label"><div><button class="category-grip" data-reorder="${esc(c.id)}" aria-label="${esc(c.name)}：拖动排序" title="拖动排序（方向键上下移动）">⠿</button><span class="category-dot"></span><strong>${esc(c.name)}</strong><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle cx="4" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/></svg></button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px ${rowHeight()}px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
     for (let row = 0; row < c.rows; row++) {
       if (
         c.rows > 1 &&
@@ -291,12 +293,19 @@ function drawOverlay(pointer) {
         (c) => c.id === state.tasks.find((t) => t.id === id)?.categoryId,
       ),
     ) % colors.length;
+  const conflicts = new Set(dependencyConflicts(state));
+  const conflictedTasks = new Set([...conflicts].flatMap(e => [e.from, e.to]));
+  canvas.querySelectorAll(".task").forEach(el => {
+    const conflict = conflictedTasks.has(el.dataset.task);
+    el.classList.toggle("dependency-conflict", conflict);
+    el.setAttribute("aria-invalid", String(conflict));
+  });
   for (const edge of state.dependencies) {
     const a = points.get(edge.from),
       b = points.get(edge.to);
     if (a && b) {
       const index = sourceIndex(edge.from);
-      paths += `<path class="dependency-line" style="stroke:${colors[index]}" d="${curve(a.right + 1, a.y, b.left - 3, b.y)}" marker-end="url(#depArrow${index})"/>`;
+      paths += `<path class="dependency-line${conflicts.has(edge) ? " dependency-conflict" : ""}" style="stroke:${colors[index]}" d="${curve(a.right + 1, a.y, b.left - 3, b.y)}" marker-end="url(#depArrow${index})"/>`;
     }
   }
   for (const m of state.milestones) {
@@ -523,6 +532,12 @@ let suppressMarkerClickUntil = 0;
 $("#viewport").addEventListener("pointerdown", (e) => {
   const grip=e.target.closest('[data-layout]');
   if(e.button===0&&grip){drag={type:'layout',key:grip.dataset.layout,x:e.clientX,y:e.clientY,before:structuredClone(state),original:grip.dataset.layout==='columnWidth'?columnWidth():headerHeight(),moved:false};e.preventDefault();return;}
+  const categoryGrip = e.target.closest("[data-reorder]");
+  if (e.button === 0 && categoryGrip) {
+    drag = { type: "category", id: categoryGrip.dataset.reorder, x: e.clientX, y: e.clientY, moved: false };
+    e.preventDefault();
+    return;
+  }
   const marker = e.target.closest("[data-milestone]");
   if (e.button === 0 && marker) {
     const milestone = state.milestones.find(
@@ -580,6 +595,23 @@ document.addEventListener("pointermove", (e) => {
   )
     return;
   drag.moved = true;
+  if (drag.type === "category") {
+    document.querySelectorAll(".category").forEach(el => el.classList.remove("drop-before", "drop-after"));
+    const bounds = v.getBoundingClientRect();
+    drag.target = null;
+    if (e.clientX < bounds.left || e.clientX > bounds.right || e.clientY < bounds.top || e.clientY > bounds.bottom) return;
+    const categories = [...document.querySelectorAll(".category")];
+    const target = categories.find(el => e.clientY < el.getBoundingClientRect().bottom) || categories.at(-1);
+    if (target && target.dataset.category !== drag.id) {
+      const rect = target.getBoundingClientRect();
+      drag.after = e.clientY >= rect.top + rect.height / 2;
+      drag.target = target.dataset.category;
+      target.classList.add(drag.after ? "drop-after" : "drop-before");
+    }
+    if (e.clientY > bounds.bottom - 35) v.scrollTop += 16;
+    else if (e.clientY < bounds.top + 35) v.scrollTop -= 16;
+    return;
+  }
   if(drag.type==='layout'){const col=drag.key==='columnWidth';state.settings[drag.key]=Math.round(Math.max(col?140:48,Math.min(col?480:180,drag.original+(col?e.clientX-drag.x:e.clientY-drag.y))));render();return;}
   if (drag.type === "milestone") {
     const next = snap(
@@ -680,6 +712,19 @@ document.addEventListener("pointermove", (e) => {
 });
 function finish(cancel = false) {
   if (!drag) return;
+  if (drag.type === "category") {
+    if (!cancel && drag.moved && drag.target) {
+      const category = state.categories.find(c => c.id === drag.id);
+      const remaining = state.categories.filter(c => c.id !== drag.id);
+      const index = remaining.findIndex(c => c.id === drag.target) + Number(drag.after);
+      remaining.splice(index, 0, category);
+      state.categories = remaining;
+      save();
+    }
+    drag = null;
+    render();
+    return;
+  }
   if(drag.type==='layout'){if(cancel)state=drag.before;else if(drag.moved)save();drag=null;render();return;}
   if (drag.type === "milestone") {
     if (drag.moved) {
@@ -768,11 +813,40 @@ document.addEventListener("keydown", (e) => {
     $("#export").focus();
   }
 });
+function confirmConflictExport(conflicts) {
+  const titles = new Map(state.tasks.map(t => [t.id, t.title]));
+  const dialog = document.createElement("dialog");
+  dialog.className = "export-warning sketch-dialog";
+  dialog.setAttribute("aria-labelledby", "exportWarningTitle");
+  dialog.setAttribute("aria-describedby", "exportWarningDescription");
+  dialog.innerHTML = `<form method="dialog">
+    <div class="sketch-eyebrow"><span aria-hidden="true">!</span> 导出前，再看一眼</div>
+    <h2 id="exportWarningTitle">有几条时间线打结了</h2>
+    <p id="exportWarningDescription">发现 <b>${conflicts.length} 处依赖矛盾</b>：前项的结束时间晚于后项的开始时间。</p>
+    <ul class="conflict-notes">${conflicts.map(e => `<li><span>${esc(titles.get(e.from))}</span><span class="conflict-arrow" aria-label="依赖于后续任务">→</span><span>${esc(titles.get(e.to))}</span></li>`).join("")}</ul>
+    <p class="sketch-hint">可以返回调整时间，或勾选“锁定依赖关系”自动修正。继续导出会保留当前安排。</p>
+    <div class="dialog-actions"><button value="cancel" autofocus>取消导出</button><button value="continue" class="primary">继续导出 <span aria-hidden="true">↗</span></button></div>
+  </form>`;
+  document.body.append(dialog);
+  return new Promise(resolve => {
+    dialog.addEventListener("close", () => {
+      const accepted = dialog.returnValue === "continue";
+      dialog.remove();
+      $("#export").focus();
+      resolve(accepted);
+    }, { once: true });
+    dialog.showModal();
+  });
+}
 $("#exportMenu").onclick = async (e) => {
   const button = e.target.closest("[data-export]");
   if (!button) return;
   const format = button.dataset.export;
   closeExportMenu();
+  const conflicts = dependencyConflicts(state);
+  if (conflicts.length) {
+    if (!await confirmConflictExport(conflicts)) return;
+  }
   $("#export").disabled = true;
   $("#export").textContent = "正在导出…";
   try {
@@ -822,11 +896,26 @@ function applyDisplaySettings() {
   state.settings ??= { showTaskDates: true, fontSize: 14 };
   $('#compactMode').checked=!!state.settings.compact;
   document.body.classList.toggle('compact-mode',!!state.settings.compact);
+  const compact = !!state.settings.compact;
+  const header = $("main > header");
+  const title = $(".intro > div:first-child");
+  const actions = $(".intro .actions");
+  const crumb = $(".crumb");
+  const saved = $("#saved");
+  if (compact) {
+    title.prepend(crumb);
+    actions.prepend(saved);
+  } else {
+    header.append(crumb, saved);
+  }
   $('#projectStats').hidden=!!state.settings.statsCollapsed;
   $('#toggleStats').setAttribute('aria-expanded',String(!state.settings.statsCollapsed));
   $('#toggleStats').textContent=state.settings.statsCollapsed?'▸ 项目概览':'▾ 项目概览';
   document.body.classList.toggle('stats-collapsed',!!state.settings.statsCollapsed);
   $("#showTaskDates").checked = state.settings.showTaskDates;
+  $("#lockDependencies").checked = !!state.settings.lockDependencies;
+  $("#hideOverflowText").checked = !!state.settings.hideOverflowText;
+  document.body.classList.toggle("hide-overflow-text", !!state.settings.hideOverflowText);
   $("#fontSize").value = String(state.settings.fontSize);
   document.documentElement.style.setProperty(
     "--text-scale",
@@ -841,6 +930,28 @@ $('#toggleStats').onclick=()=>{state.settings.statsCollapsed=!state.settings.sta
 $('#compactMode').onchange=e=>{state.settings.compact=e.target.checked;if(e.target.checked)state.settings.showTaskDates=false;render();save();};
 $("#showTaskDates").onchange = (e) => {
   state.settings.showTaskDates = e.target.checked;
+  render();
+  save();
+};
+$("#lockDependencies").onchange = e => {
+  const before = structuredClone(state);
+  try {
+    state.settings.lockDependencies = e.target.checked;
+    if (e.target.checked) {
+      enforceDependencies(state);
+      assertTimeRange(state);
+      settleRows(state);
+    }
+    render();
+    save();
+  } catch (error) {
+    state = before;
+    render();
+    notify(error.message);
+  }
+};
+$("#hideOverflowText").onchange = e => {
+  state.settings.hideOverflowText = e.target.checked;
   render();
   save();
 };
@@ -1028,3 +1139,18 @@ if (saveError)
 else save();
 
 $('#canvas').addEventListener('keydown',e=>{const grip=e.target.closest('[data-layout]');if(!grip)return;const col=grip.dataset.layout==='columnWidth',direction=col?{ArrowLeft:-1,ArrowRight:1}:{ArrowUp:-1,ArrowDown:1};if(!direction[e.key])return;e.preventDefault();state.settings[grip.dataset.layout]=Math.max(col?140:48,Math.min(col?480:180,(col?columnWidth():headerHeight())+direction[e.key]*4));render();save();document.querySelector(`[data-layout="${grip.dataset.layout}"]`)?.focus();});
+
+
+$("#canvas").addEventListener("keydown", e => {
+  const grip = e.target.closest("[data-reorder]");
+  if (!grip || !["ArrowUp", "ArrowDown"].includes(e.key)) return;
+  e.preventDefault();
+  const from = state.categories.findIndex(c => c.id === grip.dataset.reorder);
+  const to = from + (e.key === "ArrowUp" ? -1 : 1);
+  if (to < 0 || to >= state.categories.length) return;
+  const [category] = state.categories.splice(from, 1);
+  state.categories.splice(to, 0, category);
+  render();
+  save();
+  [...document.querySelectorAll("[data-reorder]")].find(el => el.dataset.reorder === category.id)?.focus();
+});

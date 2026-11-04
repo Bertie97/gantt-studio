@@ -1003,3 +1003,63 @@ button:disabled {
 .tick {padding-top:6px;padding-bottom:4px;}
 .tick b {margin-top:5px;}
 .row-action button {left:calc(var(--column-width,224px) + 12px);}
+
+.task.dependency-conflict {
+  border-color:#e34343;
+  box-shadow:0 0 9px 2px #ef444480;
+}
+.dependency-line.dependency-conflict {
+  stroke:#e34343 !important;
+  filter:drop-shadow(0 0 3px #ef4444);
+}
+
+#fontSize { padding-left:12px; padding-right:24px; min-width:84px; }
+.category-grip { flex-shrink:0; padding:0; width:18px; height:24px; border:0; background:transparent; color:#8a95a7; cursor:grab; touch-action:none; }
+.category-grip:active { cursor:grabbing; }
+.category.drop-before { box-shadow:inset 0 3px #6961d9; }
+.category.drop-after { box-shadow:inset 0 -3px #6961d9; }
+
+/* A lightly sketched note, using the workspace's purple and slate palette. */
+.sketch-dialog {
+  width:520px;
+  max-height:85vh;
+  overflow:auto;
+  padding:30px;
+  background:#fffdf8;
+  border:2px solid #8c83b0;
+  border-radius:18px 22px 17px 24px / 23px 17px 25px 18px;
+  box-shadow:5px 6px 0 #d9d3e8, 0 24px 80px #29304b30;
+}
+.sketch-eyebrow { display:flex; align-items:center; gap:9px; color:#8c739b; font-size:12px; letter-spacing:1px; margin-bottom:16px; }
+.sketch-eyebrow > span { display:grid; place-items:center; width:25px; height:25px; border:1.5px solid #b18a65; border-radius:45% 55% 48% 52%; color:#b18a65; transform:rotate(-7deg); font-size:18px; font-weight:600; }
+.sketch-dialog h2 { margin-bottom:12px; font-size:22px; }
+.sketch-dialog p { color:#73778b; font-size:13px; line-height:1.8; }
+.conflict-notes { list-style:none; padding:4px 14px; margin:18px 0; max-height:28vh; overflow:auto; background:#f6f3fb; border:1px dashed #c7bddb; border-radius:9px 13px 10px 12px; }
+.conflict-notes li { display:grid; grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr); align-items:center; gap:8px; padding:12px 0; color:#675d7d; font-size:13px; overflow-wrap:anywhere; }
+.conflict-notes li + li { border-top:1px dashed #ddd6e7; }
+.conflict-arrow { text-align:center; color:#b38870; font-size:20px; }
+.sketch-dialog .sketch-hint { font-size:12px; }
+.sketch-dialog .dialog-actions { gap:12px; }
+.sketch-dialog button { border-radius:8px 11px 9px 12px; padding:10px 18px; }
+.sketch-dialog button:focus-visible { outline:2px solid #6961d9; outline-offset:3px; }
+@media(max-width:560px) { .sketch-dialog { padding:22px; } }
+
+/* Compact page chrome only; image exports use their own SVG renderer. */
+.compact-mode main > header { display:none; }
+.compact-mode .intro > div:first-child { display:flex; align-items:center; gap:16px; min-width:0; }
+.compact-mode .intro h1 { min-width:0; }
+.compact-mode .intro .crumb { flex-shrink:0; font-size:12px; white-space:nowrap; }
+.compact-mode .crumb span { padding:0 6px; }
+.compact-mode .actions #saved { white-space:nowrap; }
+@media(max-width:700px) {
+  .compact-mode .intro > div:first-child { flex-wrap:wrap; gap:6px 12px; }
+  .compact-mode .intro .actions { width:100%; }
+}
+
+/* Text never takes pointer hits away from task edges or neighbouring tasks. */
+.task strong, .task small { pointer-events:none; }
+body:not(.hide-overflow-text) .task { overflow:visible; }
+body:not(.hide-overflow-text) .task strong,
+body:not(.hide-overflow-text) .task small { overflow:visible; text-overflow:clip; }
+body:not(.hide-overflow-text).hide-task-dates .task { justify-content:flex-start; text-align:left; }
+body:not(.hide-overflow-text).hide-task-dates .task strong { flex-shrink:0; width:max-content; }

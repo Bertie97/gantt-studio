@@ -103,6 +103,8 @@ export function validate(data) {
     !result.settings ||
     typeof result.settings.showTaskDates !== "boolean" ||
     ![12, 14, 16, 18].includes(result.settings.fontSize) ||
+    (result.settings.hideOverflowText!==undefined && typeof result.settings.hideOverflowText!=="boolean") ||
+    (result.settings.lockDependencies!==undefined && typeof result.settings.lockDependencies!=="boolean") ||
     (result.settings.compact!==undefined && typeof result.settings.compact!=="boolean") ||
     (result.settings.statsCollapsed!==undefined && typeof result.settings.statsCollapsed!=="boolean")
   )
@@ -139,7 +141,7 @@ export function validate(data) {
     mids.add(m.id);
   }
   dependencyOrder(result);
-  enforceDependencies(result);
+  if (result.settings.lockDependencies) enforceDependencies(result);
   assertTimeRange(result);
   settleRows(result);
   return result;
@@ -184,7 +186,7 @@ export function linkTasks(state, from, to) {
   };
   dependencyOrder(next);
   state.dependencies = next.dependencies;
-  enforceDependencies(state);
+  if (state.settings?.lockDependencies) enforceDependencies(state);
 }
 
 export function enforceDependencies(state) {
@@ -206,7 +208,16 @@ export function enforceDependencies(state) {
 
 // Recompute from the gesture snapshot, never from the previous pointer frame.
 // This prevents rounding drift and makes Escape restore the entire chain.
+export function dependencyConflicts(state) {
+  const tasks = new Map(state.tasks.map(t => [t.id, t]));
+  return (state.dependencies ?? []).filter(e => tasks.get(e.from)?.end > tasks.get(e.to)?.start);
+}
+
 export function scheduleChange(state, before, editedId) {
+  if (!state.settings?.lockDependencies) {
+    assertTimeRange(state);
+    return;
+  }
   const tasks = new Map(state.tasks.map((t) => [t.id, t]));
   const old = new Map(before.tasks.map((t) => [t.id, t]));
   const affected = new Set([editedId]);
