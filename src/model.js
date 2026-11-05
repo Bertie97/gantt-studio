@@ -1,3 +1,14 @@
+export const CATEGORY_COLORS = ["#6961d9", "#299c91", "#cf9250", "#568acb", "#bf6f9c"];
+export function categoryColor(category, index = 0) {
+  return category?.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+}
+export function imageState(state) {
+  const categories = state.categories.map((c, i) => ({...c, color: categoryColor(c, i)})).filter(c => c.exportVisible !== false);
+  const ids = new Set(categories.map(c => c.id));
+  const tasks = state.tasks.filter(t => ids.has(t.categoryId));
+  const taskIds = new Set(tasks.map(t => t.id));
+  return {...state, categories, tasks, dependencies: (state.dependencies ?? []).filter(e => taskIds.has(e.from) && taskIds.has(e.to))};
+}
 export const DAY = 86400000,
   WEEK = 7 * DAY;
 export function monday(time) {
@@ -66,7 +77,9 @@ export function validate(data) {
       typeof c.name !== "string" ||
       !Number.isInteger(c.rows) ||
       c.rows < 1 ||
-      c.rows > 10000
+      c.rows > 10000 ||
+      (c.color !== undefined && !/^#[0-9a-f]{6}$/i.test(c.color)) ||
+      (c.exportVisible !== undefined && typeof c.exportVisible !== "boolean")
     )
       throw Error("类别数据无效");
     ids.add(c.id);

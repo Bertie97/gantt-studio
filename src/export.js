@@ -1,4 +1,4 @@
-import { DAY, WEEK, monday } from "./model.js";
+import { DAY, WEEK, monday, categoryColor, imageState } from "./model.js";
 const escape = (s) =>
   String(s ?? "").replace(
     /[&<>"']/g,
@@ -12,7 +12,6 @@ const escape = (s) =>
       })[c],
   );
 const date = (t) => new Date(t).toISOString().slice(0, 10);
-const palette = ["#6961d9", "#299c91", "#cf9250", "#568acb", "#bf6f9c"];
 export function curve(x1, y1, x2, y2) {
   const bend = Math.max(32, Math.min(120, Math.abs(x2 - x1) * 0.5));
   // The final tangent tilts toward the target instead of flattening against its edge.
@@ -25,6 +24,8 @@ function short(s, limit) {
     : String(s ?? "");
 }
 export function projectSVG(state) {
+  state = imageState(state);
+  const palette = state.categories.length ? state.categories.map(categoryColor) : ["#6961d9"];
   const times = [
     ...state.tasks.flatMap((t) => [t.start, t.end]),
     ...(state.milestones ?? []).map((m) => m.time),

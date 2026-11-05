@@ -7,6 +7,8 @@ import {
   LIBRARY_KEY,
 } from "./projects.js";
 import {
+  categoryColor,
+  imageState,
   DAY,
   WEEK,
   monday,
@@ -31,7 +33,7 @@ const today = Date.UTC(
   new Date().getDate(),
 );
 const base = monday(today);
-const colors = ["#6961d9", "#299c91", "#cf9250", "#568acb", "#bf6f9c"];
+const DEFAULT_CATEGORY_COLORS = ["#6961d9", "#299c91", "#cf9250", "#568acb", "#bf6f9c", "#e06b5f", "#7c8f3f", "#354c7c"];
 const initial = {
   categories: [
     {
@@ -179,8 +181,9 @@ function render() {
   });
   html += "</div></div>";
   state.categories.forEach((c, index) => {
-    const color = colors[index % colors.length];
-    html += `<section class="category" data-category="${esc(c.id)}" style="height:${c.rows * rowHeight() + rowPadding()*2}px;--accent:${color}"><div class="category-label"><div><button class="category-grip" data-reorder="${esc(c.id)}" aria-label="${esc(c.name)}：拖动排序" title="拖动排序（方向键上下移动）">⠿</button><span class="category-dot"></span><strong>${esc(c.name)}</strong><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle cx="4" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/></svg></button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px ${rowHeight()}px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
+    const color = categoryColor(c, index);
+    const swatches = DEFAULT_CATEGORY_COLORS.map(v => `<button type="button" class="color-swatch${v === color ? " selected" : ""}" data-palette-color="${esc(c.id)}" data-value="${v}" style="--swatch:${v}" aria-label="选择 ${v}"></button>`).join("");
+    html += `<section class="category${c.exportVisible === false ? " export-hidden" : ""}" data-category="${esc(c.id)}" style="height:${c.rows * rowHeight() + rowPadding()*2}px;--accent:${color}"><div class="category-label"><div><button class="category-grip" data-reorder="${esc(c.id)}" aria-label="${esc(c.name)}：拖动排序" title="拖动排序（方向键上下移动）">⠿</button><button type="button" class="category-color" data-color="${esc(c.id)}" aria-label="${esc(c.name)}：类别颜色" aria-expanded="false" title="选择类别颜色" style="--accent:${color}"></button><div class="color-palette" data-palette="${esc(c.id)}" popover><span>默认颜色</span>${swatches}<label>自定义<input type="color" data-custom-color="${esc(c.id)}" value="${color}" aria-label="自定义类别颜色"></label></div><strong>${esc(c.name)}</strong><button class="category-visibility" data-visibility="${esc(c.id)}" aria-label="${esc(c.name)}：图片导出可见" aria-pressed="${c.exportVisible !== false}" title="${c.exportVisible === false ? "在图片中显示此类别" : "从图片中隐藏此类别"}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>${c.exportVisible === false ? '<path d="m3 3 18 18"/>' : ""}</svg></button><button class="edit-category" data-id="${esc(c.id)}" aria-label="编辑类别"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle cx="4" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/></svg></button></div><p>${esc(c.description)}</p><small>${state.tasks.filter((t) => t.categoryId === c.id).length} 个任务 · ${c.rows} 行</small></div><div class="track" data-category="${esc(c.id)}" style="width:${width}px;background-size:${WEEK * scale}px ${rowHeight()}px"><div class="edge top">释放以在顶部新增一行</div><div class="edge bottom">释放以在底部新增一行</div>`;
     for (let row = 0; row < c.rows; row++) {
       if (
         c.rows > 1 &&
@@ -285,6 +288,7 @@ function drawOverlay(pointer) {
       ];
     }),
   );
+  const colors = state.categories.map(categoryColor);
   let paths = `<defs>${colors.map((color, i) => `<marker id="depArrow${i}" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M2 1.5 L8 5 L2 8.5" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>`).join("")}</defs>`;
   const sourceIndex = (id) =>
     Math.max(
@@ -470,6 +474,29 @@ function taskEditor(task, isNew = false) {
 }
 $("#addCategory").onclick = () => categoryEditor();
 $("#canvas").addEventListener("click", (e) => {
+  const colorButton = e.target.closest("[data-color]");
+  if (colorButton) {
+    const palette = document.querySelector(`[data-palette="${colorButton.dataset.color}"]`);
+    const rect = colorButton.getBoundingClientRect();
+    palette.style.left = Math.max(8, Math.min(rect.left, innerWidth - 218)) + 'px';
+    palette.style.top = Math.max(8, Math.min(rect.bottom + 8, innerHeight - 170)) + 'px';
+    palette.togglePopover();
+    colorButton.setAttribute('aria-expanded', String(palette.matches(':popover-open')));
+    return;
+  }
+  const paletteColor = e.target.closest("[data-palette-color]");
+  if (paletteColor) {
+    const c = state.categories.find(c => c.id === paletteColor.dataset.paletteColor);
+    c.color = paletteColor.dataset.value; render(); save(); return;
+  }
+  const visibility = e.target.closest('[data-visibility]');
+  if (visibility) {
+    const c = state.categories.find(c => c.id === visibility.dataset.visibility);
+    c.exportVisible = c.exportVisible === false;
+    render(); save();
+    document.querySelector('[data-visibility="' + c.id + '"]')?.focus();
+    return;
+  }
   const rowButton = e.target.closest("[data-delete-row]");
   if (rowButton) {
     deleteEmptyRow(
@@ -491,8 +518,19 @@ $("#canvas").addEventListener("click", (e) => {
   if (b) categoryEditor(b.dataset.id);
   if (e.target.closest("#inlineCategory")) categoryEditor();
 });
+$("#canvas").addEventListener("toggle", e => {
+  if (!e.target.matches('.color-palette')) return;
+  const button = [...document.querySelectorAll('[data-color]')].find(b => b.dataset.color === e.target.dataset.palette);
+  button?.setAttribute('aria-expanded', String(e.newState === 'open'));
+}, true);
+$("#canvas").addEventListener("change", e => {
+  if (!e.target.matches('[data-custom-color]')) return;
+  const c = state.categories.find(c => c.id === e.target.dataset.customColor);
+  c.color = e.target.value;
+  render(); save();
+});
 $("#canvas").addEventListener("dblclick", (e) => {
-  if(e.target.closest("[data-layout]"))return;
+  if(e.target.closest("[data-layout],[data-color],[data-visibility]"))return;
   if (e.target.closest(".milestone-track") && !e.target.closest("button")) {
     milestoneEditor({ id: uid(), title: "", time: snap(timeAt(e), true) });
     return;
@@ -843,7 +881,7 @@ $("#exportMenu").onclick = async (e) => {
   if (!button) return;
   const format = button.dataset.export;
   closeExportMenu();
-  const conflicts = dependencyConflicts(state);
+  const conflicts = dependencyConflicts(format === "json" ? state : imageState(state));
   if (conflicts.length) {
     if (!await confirmConflictExport(conflicts)) return;
   }
